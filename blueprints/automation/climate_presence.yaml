@@ -1,32 +1,12 @@
 blueprint:
   name: "❄️ Klimaanlage – Anwesenheit & Saison"
   description: >-
-    **Version 1.2.0** | [GitHub](https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_presence.yaml)
+    Version 1.2.0 | https://github.com/rehle65/homeassistant-blueprints
 
-
-    Steuert Klimageräte automatisch in Abhängigkeit von Anwesenheit,
-    Außentemperatur und Tageszeit.
-
-
-    **Features:**
-
-    🌡️ Automatischer Wechsel zwischen Heiz- und Kühlmodus anhand Außentemperatur
-
-    🏠 Anwesenheitserkennung mit Eco-Modus bei Abwesenheit
-
-    🌙 Separate Zieltemperaturen für Tag und Nacht (nur wenn jemand zuhause ist)
-
-    ⏰ Frei konfigurierbare Nachtzeiten
-
-    💨 Fan-Only wenn Zieltemperatur bereits erreicht
-
-    🌡️ Eigener Innentemperatur-Sensor wählbar
-
-    🔁 Hysterese verhindert ständiges An-/Abschalten
-
-    ⏱️ Minimale Laufzeit schützt Kompressor und spart Energie
-
-    🍃 Eco-Modus bei Abwesenheit (statt Temperatur-Versatz)
+    Steuert Klimageraete automatisch: Heizen im Winter, Kuehlen im Sommer,
+    Anwesenheitserkennung mit Eco-Modus, Tag-/Nacht-Temperaturen (nur bei
+    Anwesenheit), Hysterese gegen Short-Cycling, minimale Laufzeit zum
+    Kompressorschutz.
 
   domain: automation
   source_url: https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_presence.yaml
