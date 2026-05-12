@@ -38,6 +38,9 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Anwesenheitssensor | Person, binary_sensor oder input_boolean | – |
 | Außentemperatur-Sensor | Bestimmt Heiz- vs. Kühlmodus | – |
 | Innentemperatur-Sensor | Raumtemperatur für Hysterese-Logik | – |
+| Außentemperatur-Sensor | Basis für witterungsgeführte Regelung | – |
+| Witterung Referenztemperatur | Außentemp. ohne Anpassung | 10 °C |
+| Witterung maximaler Versatz | Max. Anpassung der Zieltemperatur | 2 °C |
 | Sommer-Schwellwert | Ab dieser Außentemp. wird gekühlt | 20 °C |
 | Zieltemperatur Kühlen Tag | Raumtemperatur tagsüber im Sommer | 24 °C |
 | Zieltemperatur Kühlen Nacht | Raumtemperatur nachts im Sommer | 26 °C |
@@ -60,6 +63,7 @@ Abwesenheit mit Eco-Modus und Absenktemperatur.
 ### Features
 
 - 🏠 Anwesenheitserkennung mit konfigurierbarer Abwesenheits-Temperatur
+- 🌤️ Witterungsgeführte Regelung – Zieltemperatur folgt der Außentemperatur
 - 🔥 Frühzeitiges Vorheizen vor der Ankunft (konfigurierbare Vorlaufzeit)
 - 🌙 Nachtabsenkung – nur bei Anwesenheit aktiv
 - 🍃 Eco-Modus bei Abwesenheit
@@ -83,6 +87,9 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Tado Thermostat | Home Assistant Entität des Tado-Geräts | – |
 | Anwesenheitssensor | Person, binary_sensor oder input_boolean | – |
 | Innentemperatur-Sensor | Raumtemperatur für Hysterese-Logik | – |
+| Außentemperatur-Sensor | Basis für witterungsgeführte Regelung | – |
+| Witterung Referenztemperatur | Außentemp. ohne Anpassung | 10 °C |
+| Witterung maximaler Versatz | Max. Anpassung der Zieltemperatur | 2 °C |
 | Zieltemperatur Tag | Raumtemperatur tagsüber bei Anwesenheit | 21 °C |
 | Zieltemperatur Nacht | Raumtemperatur nachts bei Anwesenheit | 18 °C |
 | Abwesenheits-Temperatur | Temperatur wenn niemand zuhause ist | 17 °C |
