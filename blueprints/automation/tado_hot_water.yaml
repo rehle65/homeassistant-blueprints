@@ -46,6 +46,8 @@ blueprint:
         Legionellenschutz läuft weiterhin. Den Schalter kannst du unter
         Einstellungen → Helfer → Schalter anlegen.
         Beispiel: input_boolean.urlaubsmodus.
+        WICHTIG: Diesen Helfer zuerst in HA anlegen unter
+        Einstellungen → Helfer → Helfer hinzufügen → Schalter.
       selector:
         entity:
           domain: input_boolean

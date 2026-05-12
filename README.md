@@ -143,3 +143,7 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Legionellenschutz Wochentag | Wochentag der Schutzaufheizung (0=Mo) | 6 (So) |
 | Legionellenschutz Uhrzeit | Uhrzeit der Schutzaufheizung | 03:00 |
 | Legionellenschutz Temperatur | Mindestens 60 °C | 60 °C |
+
+> ⚠️ **Hinweis:** Der Urlaubsmodus-Schalter muss manuell als Helfer in Home Assistant angelegt werden.
+> Einstellungen → Helfer → Helfer hinzufügen → Schalter → Name z. B. `Urlaubsmodus`.
+> Die Entität lautet dann `input_boolean.urlaubsmodus`.
