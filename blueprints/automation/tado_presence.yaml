@@ -1,0 +1,304 @@
+blueprint:
+  name: "🌡️ Tado – Anwesenheit, Vorheizen & Saison"
+  description: >-
+    Version 1.0.0 | https://github.com/rehle65/homeassistant-blueprints
+
+    Steuert Tado-Thermostate automatisch: Zieltemperatur nach Anwesenheit und
+    Tageszeit, fruehzeitiges Vorheizen vor Ankunft, Eco-Modus bei Abwesenheit,
+    Nachtabsenkung nur bei Anwesenheit, Hysterese gegen Short-Cycling und
+    minimale Laufzeit zum Schutz des Heizsystems.
+
+  domain: automation
+  source_url: https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/tado_presence.yaml
+
+  input:
+
+    climate_entity:
+      name: "Tado Thermostat"
+      description: >
+        Die Home-Assistant-Entität deines Tado-Thermostats (z. B.
+        climate.wohnzimmer). Das Blueprint steuert genau dieses Gerät.
+      selector:
+        entity:
+          domain: climate
+
+    presence_sensor:
+      name: "Anwesenheitssensor"
+      description: >
+        Ein binärer Sensor oder eine Personenentität, die anzeigt, ob jemand
+        zuhause ist. Zustand 'on' bzw. 'home' = anwesend, alles andere =
+        abwesend. Beispiel: binary_sensor.jemand_zuhause oder person.roland.
+        Tipp: Tado bietet selbst Geofencing – diesen Sensor kannst du direkt
+        von der Tado-Integration verwenden.
+      selector:
+        entity:
+          domain:
+            - binary_sensor
+            - person
+            - input_boolean
+
+    indoor_temp_sensor:
+      name: "Innentemperatur-Sensor"
+      description: >
+        Sensor für die aktuelle Raumtemperatur (°C). Kann der interne
+        Tado-Sensor sein (z. B. sensor.wohnzimmer_temperatur) oder ein
+        externer Sensor. Wird für Hysterese-Logik verwendet.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+
+    target_temp_day:
+      name: "Zieltemperatur – Tag (°C)"
+      description: >
+        Gewünschte Raumtemperatur tagsüber bei Anwesenheit.
+        Empfehlung: 20–22 °C. Standard: 21 °C.
+      default: 21
+      selector:
+        number:
+          min: 14
+          max: 26
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    target_temp_night:
+      name: "Zieltemperatur – Nacht (°C)"
+      description: >
+        Gewünschte Raumtemperatur nachts bei Anwesenheit. Gilt nur wenn der
+        Anwesenheitssensor 'zuhause' meldet – bei Abwesenheit greift der
+        Eco-Modus. Typischerweise 2–3 °C niedriger als Tagestemperatur.
+        Standard: 18 °C.
+      default: 18
+      selector:
+        number:
+          min: 12
+          max: 22
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    away_temp:
+      name: "Abwesenheits-Temperatur (°C)"
+      description: >
+        Zieltemperatur wenn niemand zuhause ist. Das Gerät wechselt zusätzlich
+        in den Eco-Preset (sofern von Tado unterstützt). Niedrig genug um
+        Energie zu sparen, aber hoch genug um Frost zu verhindern.
+        Standard: 17 °C. Auf 5 °C für reinen Frostschutz setzen.
+      default: 17
+      selector:
+        number:
+          min: 5
+          max: 20
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    preheat_minutes:
+      name: "Vorheizzeit (Minuten)"
+      description: >
+        Wie viele Minuten vor der erwarteten Ankunft soll Tado mit dem
+        Vorheizen beginnen? Die Ankunft wird erkannt wenn der Anwesenheits-
+        sensor von 'abwesend' auf 'zuhause' wechselt. Da GPS-basierte Sensoren
+        (z. B. Tado Geofencing, OwnTracks) die Ankunft oft schon einige Minuten
+        vorher melden, reichen hier meist 15–30 Minuten.
+        Standard: 20 Minuten. Auf 0 setzen um das Vorheizen zu deaktivieren.
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 5
+          unit_of_measurement: "min"
+          mode: slider
+
+    night_start:
+      name: "Nachtbeginn"
+      description: >
+        Uhrzeit, ab der die Nacht-Zieltemperatur gilt (nur bei Anwesenheit).
+        Beispiel: 22:00.
+      default: "22:00:00"
+      selector:
+        time: {}
+
+    night_end:
+      name: "Nachtende"
+      description: >
+        Uhrzeit, ab der wieder die Tages-Zieltemperatur gilt.
+        Beispiel: 07:00.
+      default: "07:00:00"
+      selector:
+        time: {}
+
+    hysteresis:
+      name: "Hysterese (°C)"
+      description: >
+        Toleranzbereich um die Zieltemperatur. Verhindert, dass Tado ständig
+        zwischen Heizen und Standby wechselt wenn die Temperatur knapp am
+        Zielwert schwankt. Standard: 0,5 °C. Bei Fußbodenheizung empfiehlt
+        sich ein höherer Wert (1,0–1,5 °C) da diese träger reagiert.
+      default: 0.5
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.1
+          unit_of_measurement: "°C"
+          mode: slider
+
+    min_runtime:
+      name: "Minimale Laufzeit (Minuten)"
+      description: >
+        Das Gerät heizt mindestens diese Anzahl Minuten bevor es in Standby
+        wechseln darf. Schützt das Heizsystem vor zu kurzen Zyklen und spart
+        langfristig Energie. Bei Fußbodenheizung höher einstellen (30–60 min).
+        Standard: 10 Minuten. Auf 0 setzen um die Mindestlaufzeit zu deaktivieren.
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 5
+          unit_of_measurement: "min"
+          mode: slider
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Variablen
+# ──────────────────────────────────────────────────────────────────────────────
+variables:
+  indoor_temp: "{{ states(indoor_temp_sensor) | float(20) }}"
+  is_night: >
+    {% set now_time = now().strftime('%H:%M:%S') %}
+    {% if night_start <= night_end %}
+      {{ now_time >= night_start and now_time < night_end }}
+    {% else %}
+      {{ now_time >= night_start or now_time < night_end }}
+    {% endif %}
+  is_present: >
+    {% set state = states(presence_sensor) %}
+    {{ state in ['on', 'home'] }}
+  # Laufzeit des Geräts in Minuten
+  runtime_minutes: >
+    {% set last_changed = states[climate_entity].last_changed %}
+    {% set current_mode = states(climate_entity) %}
+    {% if current_mode == 'heat' and last_changed is not none %}
+      {{ ((now() - last_changed).total_seconds() / 60) | round(1) }}
+    {% else %}
+      {{ 999 }}
+    {% endif %}
+  min_runtime_active: "{{ runtime_minutes < min_runtime }}"
+  # Zieltemperatur je Situation
+  effective_target: >
+    {% if not is_present %}
+      {{ away_temp }}
+    {% elif is_night %}
+      {{ target_temp_night }}
+    {% else %}
+      {{ target_temp_day }}
+    {% endif %}
+  # Hysterese-Schwellen (nur Heizen, kein Kühlen bei Tado)
+  threshold_standby: "{{ effective_target + hysteresis }}"
+  threshold_heat:    "{{ effective_target - hysteresis }}"
+  # Eco bei Abwesenheit
+  use_eco: "{{ not is_present }}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Trigger
+# ──────────────────────────────────────────────────────────────────────────────
+trigger:
+  # Anwesenheit ändert sich → sofort reagieren
+  - platform: state
+    entity_id: !input presence_sensor
+
+  # Innentemperatur ändert sich (mit Verzögerung gegen Ausreißer)
+  - platform: state
+    entity_id: !input indoor_temp_sensor
+    for:
+      minutes: 2
+
+  # Nachtzeiten
+  - platform: time
+    at: !input night_start
+
+  - platform: time
+    at: !input night_end
+
+  # HA-Start
+  - platform: homeassistant
+    event: start
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Aktion
+# ──────────────────────────────────────────────────────────────────────────────
+action:
+  - choose:
+
+      # ── Anwesenheitssensor wechselt auf "zuhause" → Vorheizen starten ──────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.platform == 'state'
+                 and trigger.entity_id == presence_sensor
+                 and trigger.to_state.state in ['on', 'home']
+                 and trigger.from_state.state not in ['on', 'home']
+                 and preheat_minutes > 0 }}
+        sequence:
+          # Direkt auf Tages-Zieltemperatur vorheizen (ohne Eco)
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input climate_entity
+            data:
+              hvac_mode: "heat"
+          - service: climate.set_temperature
+            target:
+              entity_id: !input climate_entity
+            data:
+              temperature: "{{ target_temp_day if not is_night else target_temp_night }}"
+
+      # ── Zieltemperatur + Hysterese erreicht, Mindestlaufzeit abgelaufen
+      #    → Standby ────────────────────────────────────────────────────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ indoor_temp >= threshold_standby and not min_runtime_active }}
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input climate_entity
+            data:
+              hvac_mode: "off"
+
+      # ── Temperatur unter Hysterese-Schwelle → Heizen ──────────────────────
+      - conditions:
+          - condition: template
+            value_template: "{{ indoor_temp <= threshold_heat }}"
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input climate_entity
+            data:
+              hvac_mode: "heat"
+
+          - service: climate.set_temperature
+            target:
+              entity_id: !input climate_entity
+            data:
+              temperature: "{{ effective_target }}"
+
+          # Eco-Preset bei Abwesenheit
+          - if:
+              - condition: template
+                value_template: "{{ use_eco }}"
+            then:
+              - service: climate.set_preset_mode
+                target:
+                  entity_id: !input climate_entity
+                data:
+                  preset_mode: "eco"
+                continue_on_error: true
+
+    # ── Innerhalb Hysterese oder Mindestlaufzeit → nichts tun ────────────────
+    default: []
+
+mode: single
+max_exceeded: silent
