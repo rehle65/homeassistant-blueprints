@@ -43,7 +43,8 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Zieltemperatur Kühlen Nacht | Raumtemperatur nachts im Sommer | 26 °C |
 | Zieltemperatur Heizen Tag | Raumtemperatur tagsüber im Winter | 21 °C |
 | Zieltemperatur Heizen Nacht | Raumtemperatur nachts im Winter | 18 °C |
-| Abwesenheits-Versatz | Temperaturanpassung bei Abwesenheit | 3 °C |
+| Abwesenheits-Versatz | Temperaturversatz + Eco-Modus bei Abwesenheit | 3 °C |
 | Nachtbeginn | Start der Nacht-Zieltemperatur | 22:00 |
 | Nachtende | Ende der Nacht-Zieltemperatur | 07:00 |
 | Hysterese | Toleranzbereich gegen Short-Cycling | 0,5 °C |
+| Minimale Laufzeit | Kompressorschutz, verhindert zu kurze Zyklen | 10 min |

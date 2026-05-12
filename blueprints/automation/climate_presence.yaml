@@ -1,7 +1,7 @@
 blueprint:
   name: "❄️ Klimaanlage – Anwesenheit & Saison"
   description: >-
-    **Version 1.1.0** | [GitHub](https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_presence.yaml)
+    **Version 1.2.0** | [GitHub](https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_presence.yaml)
 
 
     Steuert Klimageräte automatisch in Abhängigkeit von Anwesenheit,
@@ -12,9 +12,9 @@ blueprint:
 
     🌡️ Automatischer Wechsel zwischen Heiz- und Kühlmodus anhand Außentemperatur
 
-    🏠 Anwesenheitserkennung mit sparsamem Abwesenheits-Versatz
+    🏠 Anwesenheitserkennung mit Eco-Modus bei Abwesenheit
 
-    🌙 Separate Zieltemperaturen für Tag und Nacht
+    🌙 Separate Zieltemperaturen für Tag und Nacht (nur wenn jemand zuhause ist)
 
     ⏰ Frei konfigurierbare Nachtzeiten
 
@@ -24,15 +24,19 @@ blueprint:
 
     🔁 Hysterese verhindert ständiges An-/Abschalten
 
+    ⏱️ Minimale Laufzeit schützt Kompressor und spart Energie
+
+    🍃 Eco-Modus bei Abwesenheit (statt Temperatur-Versatz)
+
   domain: automation
-  source_url: https://github.com/DEIN-USER/DEIN-REPO/blob/main/blueprints/automation/climate_presence.yaml
+  source_url: https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_presence.yaml
 
   input:
 
     climate_entity:
       name: "Klimagerät"
       description: >
-        Die Home-Assistant-Entität deines Midea-Klimageräts (z. B.
+        Die Home-Assistant-Entität deines Klimageräts (z. B.
         climate.wohnzimmer). Das Blueprint steuert genau dieses Gerät.
       selector:
         entity:
@@ -106,9 +110,10 @@ blueprint:
     target_temp_night_cool:
       name: "Zieltemperatur Kühlen – Nacht (°C)"
       description: >
-        Gewünschte Raumtemperatur nachts im Kühlbetrieb. Sollte etwas höher
-        als die Tagestemperatur liegen, um Energie zu sparen und ruhig schlafen
-        zu können. Standard: 26 °C.
+        Gewünschte Raumtemperatur nachts im Kühlbetrieb. Gilt nur wenn der
+        Anwesenheitssensor 'zuhause' meldet – bei Abwesenheit greift stattdessen
+        der Eco-Modus. Sollte etwas höher als die Tagestemperatur liegen.
+        Standard: 26 °C.
       default: 26
       selector:
         number:
@@ -135,8 +140,9 @@ blueprint:
     target_temp_night_heat:
       name: "Zieltemperatur Heizen – Nacht (°C)"
       description: >
-        Gewünschte Raumtemperatur nachts im Heizbetrieb. Wird typischerweise
-        niedriger gesetzt als der Tageswert, um Energie zu sparen.
+        Gewünschte Raumtemperatur nachts im Heizbetrieb. Gilt nur wenn der
+        Anwesenheitssensor 'zuhause' meldet – bei Abwesenheit greift stattdessen
+        der Eco-Modus. Typischerweise niedriger als der Tageswert.
         Standard: 18 °C.
       default: 18
       selector:
@@ -150,10 +156,10 @@ blueprint:
     away_temp_offset:
       name: "Abwesenheits-Versatz (°C)"
       description: >
-        Wenn niemand zuhause ist, wird die Zieltemperatur um diesen Wert
-        angepasst – beim Heizen nach unten, beim Kühlen nach oben. So läuft
-        die Anlage sparsam weiter und das Haus kühlt/überhitzt nicht komplett.
-        Standard: 3 °C. Auf 0 setzen, um den Abwesenheitsmodus zu deaktivieren.
+        Wenn niemand zuhause ist, wird die Tages-Zieltemperatur um diesen Wert
+        angepasst – beim Heizen nach unten, beim Kühlen nach oben. Das Gerät
+        wechselt dabei in den Eco-Preset (sofern unterstützt), um Energie zu
+        sparen. Standard: 3 °C. Auf 0 setzen um den Versatz zu deaktivieren.
       default: 3
       selector:
         number:
@@ -166,7 +172,7 @@ blueprint:
     night_start:
       name: "Nachtbeginn"
       description: >
-        Uhrzeit, ab der die Nacht-Zieltemperatur gilt.
+        Uhrzeit, ab der die Nacht-Zieltemperatur gilt (nur bei Anwesenheit).
         Beispiel: 22:00.
       default: "22:00:00"
       selector:
@@ -203,6 +209,23 @@ blueprint:
           unit_of_measurement: "°C"
           mode: slider
 
+    min_runtime:
+      name: "Minimale Laufzeit (Minuten)"
+      description: >
+        Das Gerät läuft mindestens diese Anzahl Minuten weiter, bevor es in den
+        Fan-Only-Modus wechseln darf – auch wenn die Zieltemperatur bereits
+        erreicht wurde. Das schützt den Kompressor vor zu häufigem Starten und
+        Stoppen und spart langfristig Energie und Verschleiß.
+        Standard: 10 Minuten. Auf 0 setzen um die Mindestlaufzeit zu deaktivieren.
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 1
+          unit_of_measurement: "min"
+          mode: slider
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Variablen: einmalig berechnen, damit Conditions übersichtlich bleiben
 # ──────────────────────────────────────────────────────────────────────────────
@@ -220,14 +243,25 @@ variables:
   is_present: >
     {% set state = states(presence_sensor) %}
     {{ state in ['on', 'home'] }}
-  # Rohe Zieltemperatur je Modus und Tageszeit
+  # Laufzeit des Geräts in Minuten (0 wenn nicht aktiv oder unbekannt)
+  runtime_minutes: >
+    {% set last_changed = states[climate_entity].last_changed %}
+    {% set current_mode = states(climate_entity) %}
+    {% if current_mode in ['heat', 'cool'] and last_changed is not none %}
+      {{ ((now() - last_changed).total_seconds() / 60) | round(1) }}
+    {% else %}
+      {{ 999 }}
+    {% endif %}
+  # Mindestlaufzeit noch nicht erreicht?
+  min_runtime_active: "{{ runtime_minutes < min_runtime }}"
+  # Rohe Zieltemperatur je Modus und Tageszeit – NUR bei Anwesenheit Nacht nutzen
   raw_target: >
     {% if is_summer %}
-      {% if is_night %}{{ target_temp_night_cool }}{% else %}{{ target_temp_day_cool }}{% endif %}
+      {% if is_night and is_present %}{{ target_temp_night_cool }}{% else %}{{ target_temp_day_cool }}{% endif %}
     {% else %}
-      {% if is_night %}{{ target_temp_night_heat }}{% else %}{{ target_temp_day_heat }}{% endif %}
+      {% if is_night and is_present %}{{ target_temp_night_heat }}{% else %}{{ target_temp_day_heat }}{% endif %}
     {% endif %}
-  # Abwesenheitskorrektur
+  # Abwesenheitskorrektur + Eco-Modus Flag
   effective_target: >
     {% if is_present %}
       {{ raw_target }}
@@ -238,13 +272,11 @@ variables:
         {{ raw_target - away_temp_offset }}
       {% endif %}
     {% endif %}
-  # HVAC-Modus
+  # HVAC-Modus: bei Abwesenheit Eco-Preset wenn verfügbar, sonst normaler Modus
   hvac_mode: "{{ 'cool' if is_summer else 'heat' }}"
-  # Hysterese-Schwellen:
-  # Kühlen → Fan-Only erst wenn Temp <= Ziel - Hysterese
-  #           Kühlen wieder wenn Temp >= Ziel + Hysterese
-  # Heizen → Fan-Only erst wenn Temp >= Ziel + Hysterese
-  #           Heizen wieder wenn Temp <= Ziel - Hysterese
+  # Eco-Preset nur bei Abwesenheit setzen
+  use_eco: "{{ not is_present and away_temp_offset > 0 }}"
+  # Hysterese-Schwellen
   threshold_fan:  "{{ effective_target - hysteresis if is_summer else effective_target + hysteresis }}"
   threshold_heat: "{{ effective_target + hysteresis if is_summer else effective_target - hysteresis }}"
 
@@ -279,15 +311,15 @@ trigger:
 action:
   - choose:
 
-      # ── Zieltemperatur mit Hysterese unterschritten (Kühlen) /
-      #    überschritten (Heizen) → Fan-Only ──────────────────────────────────
+      # ── Zieltemperatur mit Hysterese erreicht UND Mindestlaufzeit abgelaufen
+      #    → Fan-Only ─────────────────────────────────────────────────────────
       - conditions:
           - condition: template
             value_template: >
               {% if is_summer %}
-                {{ indoor_temp <= threshold_fan }}
+                {{ indoor_temp <= threshold_fan and not min_runtime_active }}
               {% else %}
-                {{ indoor_temp >= threshold_fan }}
+                {{ indoor_temp >= threshold_fan and not min_runtime_active }}
               {% endif %}
         sequence:
           - service: climate.set_hvac_mode
@@ -319,7 +351,20 @@ action:
             data:
               temperature: "{{ effective_target }}"
 
-    # ── Temperatur liegt innerhalb der Hysterese → nichts tun ───────────────
+          # Eco-Preset bei Abwesenheit setzen (wenn Gerät es unterstützt)
+          - if:
+              - condition: template
+                value_template: "{{ use_eco }}"
+            then:
+              - service: climate.set_preset_mode
+                target:
+                  entity_id: !input climate_entity
+                data:
+                  preset_mode: "eco"
+                continue_on_error: true
+
+    # ── Temperatur liegt innerhalb der Hysterese oder Mindestlaufzeit läuft
+    #    noch → nichts tun ───────────────────────────────────────────────────
     default: []
 
 mode: single
