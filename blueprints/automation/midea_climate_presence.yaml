@@ -1,12 +1,26 @@
 blueprint:
-  name: "Midea Klimaanlage – Anwesenheit & Saison"
-  description: >
+  name: "❄️ Midea Klimaanlage – Anwesenheit & Saison"
+  description: >-
+    **Version 1.0.0** | [GitHub](https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/midea_climate_presence.yaml)
+
+
     Steuert Midea-Klimageräte automatisch in Abhängigkeit von Anwesenheit,
-    Außentemperatur (Heizen vs. Kühlen), Tageszeit und individuellen
-    Zieltemperaturen. Im Winter heizt die Anlage auf die gewünschte Temperatur,
-    im Sommer kühlt sie. Nachts gilt eine separate Zieltemperatur.
-    Ist niemand zuhause, wechselt die Anlage in einen Abwesenheits-Modus
-    (sparsamere Zieltemperatur) statt komplett abzuschalten.
+    Außentemperatur und Tageszeit.
+
+
+    **Features:**
+
+    🌡️ Automatischer Wechsel zwischen Heiz- und Kühlmodus anhand Außentemperatur
+
+    🏠 Anwesenheitserkennung mit sparsamem Abwesenheits-Versatz
+
+    🌙 Separate Zieltemperaturen für Tag und Nacht
+
+    ⏰ Frei konfigurierbare Nachtzeiten
+
+    💨 Fan-Only wenn Zieltemperatur bereits erreicht
+
+    🌡️ Eigener Innentemperatur-Sensor wählbar
 
   domain: automation
   source_url: https://github.com/DEIN-USER/DEIN-REPO/blob/main/blueprints/automation/midea_climate_presence.yaml
