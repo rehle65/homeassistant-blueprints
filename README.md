@@ -98,3 +98,48 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Nachtende | Ende der Nachtabsenkung | 07:00 |
 | Hysterese | Toleranzbereich gegen Short-Cycling | 0,5 °C |
 | Minimale Laufzeit | Schutz vor zu kurzen Heizzyklen | 10 min |
+
+---
+
+## 🚿 Tado Warmwasser – Zeitplan, Anwesenheit & Legionellenschutz
+
+Steuert die Tado Warmwasserbereitung automatisch nach Zeitplänen und
+Anwesenheit. Spart Energie durch Eco-Modus außerhalb der Nutzungszeiten,
+schützt im Urlaub durch komplettes Abschalten und sorgt wöchentlich für
+hygienisch sicheres Wasser durch Legionellenschutz-Aufheizung.
+
+### Features
+
+- ⏰ Zwei konfigurierbare Heizzeitfenster (morgens und abends)
+- 🏠 Anwesenheitserkennung – Eco-Modus bei Abwesenheit
+- 🏖️ Urlaubsmodus – komplettes Abschalten, automatisches Vorheizen bei Rückkehr
+- 🦠 Legionellenschutz – wöchentliche Aufheizung auf 60 °C (auch im Urlaub)
+- 🌡️ Separate Temperaturen für Normal- und Eco-Betrieb
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Ftado_hot_water.yaml)
+
+Oder manuell über **Einstellungen → Automatisierungen → Blueprints → Blueprint importieren** mit folgender URL:
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/tado_hot_water.yaml
+```
+
+### Konfigurierbare Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Tado Warmwasser-Entität | water_heater Entität der Tado-Integration | – |
+| Anwesenheitssensor | Person, binary_sensor oder input_boolean | – |
+| Urlaubsmodus-Schalter | input_boolean zum Aktivieren des Urlaubs | – |
+| Normaltemperatur | Zieltemperatur in aktiven Heizzeitfenstern | 55 °C |
+| Eco-Temperatur | Zieltemperatur außerhalb der Heizzeiten | 40 °C |
+| Morgen-Heizzeit Start | Beginn des morgendlichen Aufheizens | 06:00 |
+| Morgen-Heizzeit Ende | Ende des morgendlichen Aufheizens | 09:00 |
+| Abend-Heizzeit Start | Beginn des abendlichen Aufheizens | 17:00 |
+| Abend-Heizzeit Ende | Ende des abendlichen Aufheizens | 22:00 |
+| Urlaubsmodus Vorlaufzeit | Stunden Vorlauf vor Rückkehr aus Urlaub | 2 h |
+| Legionellenschutz Wochentag | Wochentag der Schutzaufheizung (0=Mo) | 6 (So) |
+| Legionellenschutz Uhrzeit | Uhrzeit der Schutzaufheizung | 03:00 |
+| Legionellenschutz Temperatur | Mindestens 60 °C | 60 °C |

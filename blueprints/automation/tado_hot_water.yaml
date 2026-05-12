@@ -1,0 +1,396 @@
+blueprint:
+  name: "🚿 Tado Warmwasser – Zeitplan, Anwesenheit & Legionellenschutz"
+  description: >-
+    Version 1.0.0 | https://github.com/rehle65/homeassistant-blueprints
+
+    Steuert die Tado Warmwasserbereitung automatisch: Aufheizen nach
+    konfigurierbaren Zeitfenstern, Eco-Modus bei Abwesenheit, komplettes
+    Abschalten im Urlaubsmodus mit rechtzeitigem Wiederanlauf sowie
+    woechentlicher Legionellenschutz-Aufheizung auf 60 Grad.
+
+  domain: automation
+  source_url: https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/tado_hot_water.yaml
+
+  input:
+
+    water_heater_entity:
+      name: "Tado Warmwasser-Entität"
+      description: >
+        Die Home-Assistant-Entität deiner Tado Warmwassersteuerung
+        (z. B. water_heater.warmwasser). Du findest sie unter
+        Einstellungen → Geräte & Dienste → Tado.
+      selector:
+        entity:
+          domain: water_heater
+
+    presence_sensor:
+      name: "Anwesenheitssensor"
+      description: >
+        Sensor der anzeigt ob jemand zuhause ist. Zustand 'on' bzw. 'home'
+        = anwesend, alles andere = abwesend. Beispiel: person.roland oder
+        binary_sensor.jemand_zuhause. Bei Abwesenheit wechselt das Gerät
+        in den Eco-Modus.
+      selector:
+        entity:
+          domain:
+            - binary_sensor
+            - person
+            - input_boolean
+
+    vacation_mode:
+      name: "Urlaubsmodus-Schalter"
+      description: >
+        Ein input_boolean der den Urlaubsmodus aktiviert. Solange dieser
+        Schalter eingeschaltet ist, bleibt die Warmwasserbereitung komplett
+        aus – unabhängig von Zeitplänen und Anwesenheit. Nur der
+        Legionellenschutz läuft weiterhin. Den Schalter kannst du unter
+        Einstellungen → Helfer → Schalter anlegen.
+        Beispiel: input_boolean.urlaubsmodus.
+      selector:
+        entity:
+          domain: input_boolean
+
+    normal_temp:
+      name: "Normalbetrieb-Temperatur (°C)"
+      description: >
+        Zieltemperatur während der aktiven Heizzeitfenster bei Anwesenheit.
+        Standard: 55 °C – ausreichend warm für Komfort und hygienisch sicher.
+        Nicht unter 50 °C einstellen (Legionellenrisiko).
+      default: 55
+      selector:
+        number:
+          min: 40
+          max: 65
+          step: 1
+          unit_of_measurement: "°C"
+          mode: slider
+
+    eco_temp:
+      name: "Eco-Temperatur (°C)"
+      description: >
+        Zieltemperatur außerhalb der Heizzeitfenster und bei Abwesenheit.
+        Das Wasser bleibt warm genug um nicht komplett auszukühlen, aber
+        die Heizung läuft seltener. Standard: 40 °C.
+        Nicht unter 35 °C einstellen (Legionellenrisiko bei längerer
+        Standzeit – daher ergänzend den Legionellenschutz aktivieren).
+      default: 40
+      selector:
+        number:
+          min: 35
+          max: 55
+          step: 1
+          unit_of_measurement: "°C"
+          mode: slider
+
+    morning_start:
+      name: "Morgen-Heizzeit: Start"
+      description: >
+        Uhrzeit ab der das Warmwasser morgens auf Normaltemperatur
+        aufgeheizt wird – rechtzeitig vor dem ersten Duschen.
+        Beispiel: 06:00.
+      default: "06:00:00"
+      selector:
+        time: {}
+
+    morning_end:
+      name: "Morgen-Heizzeit: Ende"
+      description: >
+        Uhrzeit ab der das Warmwasser nach dem Morgenprogramm wieder
+        auf Eco-Temperatur abgesenkt wird.
+        Beispiel: 09:00.
+      default: "09:00:00"
+      selector:
+        time: {}
+
+    evening_start:
+      name: "Abend-Heizzeit: Start"
+      description: >
+        Uhrzeit ab der das Warmwasser abends erneut auf Normaltemperatur
+        aufgeheizt wird – für Abend-Dusche oder Bad.
+        Beispiel: 17:00. Auf den gleichen Wert wie evening_end setzen
+        um das Abend-Zeitfenster zu deaktivieren.
+      default: "17:00:00"
+      selector:
+        time: {}
+
+    evening_end:
+      name: "Abend-Heizzeit: Ende"
+      description: >
+        Uhrzeit ab der das Warmwasser nach dem Abendprogramm wieder
+        auf Eco-Temperatur abgesenkt wird.
+        Beispiel: 22:00.
+      default: "22:00:00"
+      selector:
+        time: {}
+
+    vacation_preheat_hours:
+      name: "Urlaubsmodus – Vorlaufzeit (Stunden)"
+      description: >
+        Wie viele Stunden vor der Rückkehr aus dem Urlaub soll die
+        Warmwasserbereitung wieder starten? Die Rückkehr wird erkannt
+        wenn der Urlaubsmodus-Schalter ausgeschaltet wird.
+        Standard: 2 Stunden.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          unit_of_measurement: "h"
+          mode: slider
+
+    legionella_day:
+      name: "Legionellenschutz – Wochentag"
+      description: >
+        An welchem Wochentag soll der Legionellenschutz durchgeführt werden?
+        Das Wasser wird einmal wöchentlich auf 60 °C aufgeheizt um
+        Legionellen abzutöten. Empfehlung: Mittwoch oder Sonntag.
+        0 = Montag, 1 = Dienstag, 2 = Mittwoch, 3 = Donnerstag,
+        4 = Freitag, 5 = Samstag, 6 = Sonntag.
+      default: 6
+      selector:
+        number:
+          min: 0
+          max: 6
+          step: 1
+          mode: box
+
+    legionella_time:
+      name: "Legionellenschutz – Uhrzeit"
+      description: >
+        Uhrzeit der wöchentlichen Legionellenschutz-Aufheizung.
+        Empfehlung: Nachtstunden oder früher Morgen wenn das Netz
+        günstigeren Strom anbietet. Standard: 03:00.
+      default: "03:00:00"
+      selector:
+        time: {}
+
+    legionella_temp:
+      name: "Legionellenschutz – Temperatur (°C)"
+      description: >
+        Temperatur für die Legionellenschutz-Aufheizung. Muss mindestens
+        60 °C betragen um Legionellen zuverlässig abzutöten. Das Wasser
+        sollte diese Temperatur mindestens 1 Minute halten.
+        Standard: 60 °C – nicht unter 60 °C einstellen.
+      default: 60
+      selector:
+        number:
+          min: 60
+          max: 70
+          step: 1
+          unit_of_measurement: "°C"
+          mode: slider
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Variablen
+# ──────────────────────────────────────────────────────────────────────────────
+variables:
+  is_present: >
+    {% set state = states(presence_sensor) %}
+    {{ state in ['on', 'home'] }}
+  is_vacation: "{{ states(vacation_mode) == 'on' }}"
+  now_time: "{{ now().strftime('%H:%M:%S') }}"
+  is_morning_window: >
+    {{ now_time >= morning_start and now_time < morning_end }}
+  is_evening_window: >
+    {{ morning_end != evening_end
+       and now_time >= evening_start and now_time < evening_end }}
+  is_active_window: "{{ is_morning_window or is_evening_window }}"
+  is_legionella_day: "{{ now().weekday() == legionella_day | int }}"
+  is_legionella_time: >
+    {{ now_time >= legionella_time
+       and now_time < (legionella_time[:5] + ':00')[:8] }}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Trigger
+# ──────────────────────────────────────────────────────────────────────────────
+trigger:
+  # Zeitplan-Trigger
+  - platform: time
+    at: !input morning_start
+    id: "morning_start"
+
+  - platform: time
+    at: !input morning_end
+    id: "morning_end"
+
+  - platform: time
+    at: !input evening_start
+    id: "evening_start"
+
+  - platform: time
+    at: !input evening_end
+    id: "evening_end"
+
+  # Legionellenschutz
+  - platform: time
+    at: !input legionella_time
+    id: "legionella"
+
+  # Anwesenheit und Urlaubsmodus
+  - platform: state
+    entity_id: !input presence_sensor
+    id: "presence"
+
+  - platform: state
+    entity_id: !input vacation_mode
+    id: "vacation"
+
+  # HA-Start
+  - platform: homeassistant
+    event: start
+    id: "ha_start"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Aktion
+# ──────────────────────────────────────────────────────────────────────────────
+action:
+  - choose:
+
+      # ── Legionellenschutz: einmal wöchentlich auf 60 °C ───────────────────
+      # Läuft auch im Urlaubsmodus – Sicherheit geht vor
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'legionella' and is_legionella_day }}"
+        sequence:
+          - service: water_heater.set_operation_mode
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              operation_mode: "auto"
+          - service: water_heater.set_temperature
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              temperature: "{{ legionella_temp }}"
+          - delay:
+              hours: 1
+          # Nach einer Stunde zurück auf Eco (oder normal je nach Zeit/Anwesenheit)
+          - service: water_heater.set_temperature
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              temperature: >
+                {% if is_vacation or not is_present %}
+                  {{ eco_temp }}
+                {% elif is_active_window %}
+                  {{ normal_temp }}
+                {% else %}
+                  {{ eco_temp }}
+                {% endif %}
+
+      # ── Urlaubsmodus wird deaktiviert → sofort vorheizen ──────────────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id == 'vacation'
+                 and trigger.to_state.state == 'off'
+                 and trigger.from_state.state == 'on' }}
+        sequence:
+          - service: water_heater.set_operation_mode
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              operation_mode: "auto"
+          - service: water_heater.set_temperature
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              temperature: "{{ normal_temp }}"
+
+      # ── Urlaubsmodus wird aktiviert → sofort auf Eco / aus ────────────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id == 'vacation'
+                 and trigger.to_state.state == 'on' }}
+        sequence:
+          - service: water_heater.set_operation_mode
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              operation_mode: "off"
+
+      # ── Heizzeitfenster beginnt: anwesend & kein Urlaub → Normaltemperatur
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id in ['morning_start', 'evening_start']
+                 and is_present and not is_vacation }}
+        sequence:
+          - service: water_heater.set_operation_mode
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              operation_mode: "auto"
+          - service: water_heater.set_temperature
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              temperature: "{{ normal_temp }}"
+
+      # ── Heizzeitfenster endet oder Abwesenheit → Eco-Temperatur ──────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id in ['morning_end', 'evening_end']
+                 or (trigger.id == 'presence'
+                     and trigger.to_state.state not in ['on', 'home']
+                     and not is_vacation) }}
+        sequence:
+          - service: water_heater.set_operation_mode
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              operation_mode: "auto"
+          - service: water_heater.set_temperature
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              temperature: "{{ eco_temp }}"
+
+      # ── Jemand kommt nach Hause (kein Urlaub) → prüfen ob Heizzeitfenster
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id == 'presence'
+                 and trigger.to_state.state in ['on', 'home']
+                 and not is_vacation }}
+        sequence:
+          - service: water_heater.set_operation_mode
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              operation_mode: "auto"
+          - service: water_heater.set_temperature
+            target:
+              entity_id: !input water_heater_entity
+            data:
+              temperature: >
+                {{ normal_temp if is_active_window else eco_temp }}
+
+    # ── HA-Start: Zustand wiederherstellen ───────────────────────────────────
+    default:
+      - service: water_heater.set_operation_mode
+        target:
+          entity_id: !input water_heater_entity
+        data:
+          operation_mode: >
+            {{ 'off' if is_vacation else 'auto' }}
+      - service: water_heater.set_temperature
+        target:
+          entity_id: !input water_heater_entity
+        data:
+          temperature: >
+            {% if is_vacation %}
+              {{ eco_temp }}
+            {% elif not is_present %}
+              {{ eco_temp }}
+            {% elif is_active_window %}
+              {{ normal_temp }}
+            {% else %}
+              {{ eco_temp }}
+            {% endif %}
+
+mode: single
+max_exceeded: silent
