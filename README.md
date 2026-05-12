@@ -4,9 +4,9 @@ Eine Sammlung von Home Assistant Blueprints für die Heimautomatisierung.
 
 ---
 
-## ❄️ Midea Klimaanlage – Anwesenheit & Saison
+## ❄️ Klimaanlage – Anwesenheit & Saison
 
-Steuert Midea-Klimageräte automatisch in Abhängigkeit von Anwesenheit,
+Steuert Klimageräte automatisch in Abhängigkeit von Anwesenheit,
 Außentemperatur und Tageszeit. Im Winter heizen, im Sommer kühlen –
 vollautomatisch und mit Hysterese gegen ständiges An-/Abschalten.
 
@@ -22,12 +22,12 @@ vollautomatisch und mit Hysterese gegen ständiges An-/Abschalten.
 
 ### Import
 
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fmidea_climate_presence.yaml)
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fclimate_presence.yaml)
 
 Oder manuell über **Einstellungen → Automatisierungen → Blueprints → Blueprint importieren** mit folgender URL:
 
 ```
-https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/midea_climate_presence.yaml
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_presence.yaml
 ```
 
 ### Konfigurierbare Parameter

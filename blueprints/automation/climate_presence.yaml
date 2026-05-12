@@ -1,10 +1,10 @@
 blueprint:
-  name: "❄️ Midea Klimaanlage – Anwesenheit & Saison"
+  name: "❄️ Klimaanlage – Anwesenheit & Saison"
   description: >-
-    **Version 1.1.0** | [GitHub](https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/midea_climate_presence.yaml)
+    **Version 1.1.0** | [GitHub](https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_presence.yaml)
 
 
-    Steuert Midea-Klimageräte automatisch in Abhängigkeit von Anwesenheit,
+    Steuert Klimageräte automatisch in Abhängigkeit von Anwesenheit,
     Außentemperatur und Tageszeit.
 
 
@@ -25,7 +25,7 @@ blueprint:
     🔁 Hysterese verhindert ständiges An-/Abschalten
 
   domain: automation
-  source_url: https://github.com/DEIN-USER/DEIN-REPO/blob/main/blueprints/automation/midea_climate_presence.yaml
+  source_url: https://github.com/DEIN-USER/DEIN-REPO/blob/main/blueprints/automation/climate_presence.yaml
 
   input:
 
