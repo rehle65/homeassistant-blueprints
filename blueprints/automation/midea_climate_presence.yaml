@@ -1,0 +1,266 @@
+blueprint:
+  name: "Midea Klimaanlage – Anwesenheit & Saison"
+  description: >
+    Steuert Midea-Klimageräte automatisch in Abhängigkeit von Anwesenheit,
+    Außentemperatur (Heizen vs. Kühlen), Tageszeit und individuellen
+    Zieltemperaturen. Im Winter heizt die Anlage auf die gewünschte Temperatur,
+    im Sommer kühlt sie. Nachts gilt eine separate Zieltemperatur.
+    Ist niemand zuhause, wechselt die Anlage in einen Abwesenheits-Modus
+    (sparsamere Zieltemperatur) statt komplett abzuschalten.
+
+  domain: automation
+  source_url: https://github.com/DEIN-USER/DEIN-REPO/blob/main/blueprints/automation/midea_climate_presence.yaml
+
+  input:
+
+    climate_entity:
+      name: "Klimagerät"
+      description: >
+        Die Home-Assistant-Entität deines Midea-Klimageräts (z. B.
+        climate.wohnzimmer). Das Blueprint steuert genau dieses Gerät.
+      selector:
+        entity:
+          domain: climate
+
+    presence_sensor:
+      name: "Anwesenheitssensor"
+      description: >
+        Ein binärer Sensor oder eine Personenentität, die anzeigt, ob jemand
+        zuhause ist. Zustand 'on' bzw. 'home' = anwesend, alles andere =
+        abwesend. Beispiel: binary_sensor.jemand_zuhause oder person.roland.
+      selector:
+        entity:
+          domain:
+            - binary_sensor
+            - person
+            - input_boolean
+
+    outdoor_temp_sensor:
+      name: "Außentemperatur-Sensor"
+      description: >
+        Sensor, der die aktuelle Außentemperatur in °C liefert. Liegt der Wert
+        über dem Sommer-Schwellwert, schaltet die Anlage in den Kühlmodus;
+        darunter in den Heizemodus. Beispiel: sensor.aussentemperatur.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+
+    indoor_temp_sensor:
+      name: "Innentemperatur-Sensor"
+      description: >
+        Sensor für die aktuelle Raumtemperatur (°C). Wird genutzt, um zu
+        prüfen, ob die Zieltemperatur bereits erreicht wurde, und die Anlage
+        ggf. in den Fan-Only-Modus zu versetzen. Beispiel:
+        sensor.wohnzimmer_temperatur.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+
+    summer_threshold:
+      name: "Sommer-Schwellwert (°C)"
+      description: >
+        Ab dieser Außentemperatur gilt Sommer-/Kühlmodus. Liegt die
+        Außentemperatur dauerhaft darunter, wird geheizt. Empfehlung: 18–22 °C.
+        Standard: 20 °C.
+      default: 20
+      selector:
+        number:
+          min: 10
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    target_temp_day_cool:
+      name: "Zieltemperatur Kühlen – Tag (°C)"
+      description: >
+        Gewünschte Raumtemperatur tagsüber im Kühlbetrieb (Sommer).
+        Empfehlung: 22–26 °C. Standard: 24 °C.
+      default: 24
+      selector:
+        number:
+          min: 16
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    target_temp_night_cool:
+      name: "Zieltemperatur Kühlen – Nacht (°C)"
+      description: >
+        Gewünschte Raumtemperatur nachts im Kühlbetrieb. Sollte etwas höher
+        als die Tagestemperatur liegen, um Energie zu sparen und ruhig schlafen
+        zu können. Standard: 26 °C.
+      default: 26
+      selector:
+        number:
+          min: 18
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    target_temp_day_heat:
+      name: "Zieltemperatur Heizen – Tag (°C)"
+      description: >
+        Gewünschte Raumtemperatur tagsüber im Heizbetrieb (Winter).
+        Empfehlung: 20–22 °C. Standard: 21 °C.
+      default: 21
+      selector:
+        number:
+          min: 14
+          max: 26
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    target_temp_night_heat:
+      name: "Zieltemperatur Heizen – Nacht (°C)"
+      description: >
+        Gewünschte Raumtemperatur nachts im Heizbetrieb. Wird typischerweise
+        niedriger gesetzt als der Tageswert, um Energie zu sparen.
+        Standard: 18 °C.
+      default: 18
+      selector:
+        number:
+          min: 12
+          max: 22
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    away_temp_offset:
+      name: "Abwesenheits-Versatz (°C)"
+      description: >
+        Wenn niemand zuhause ist, wird die Zieltemperatur um diesen Wert
+        angepasst – beim Heizen nach unten, beim Kühlen nach oben. So läuft
+        die Anlage sparsam weiter und das Haus kühlt/überhitzt nicht komplett.
+        Standard: 3 °C. Auf 0 setzen, um den Abwesenheitsmodus zu deaktivieren.
+      default: 3
+      selector:
+        number:
+          min: 0
+          max: 8
+          step: 0.5
+          unit_of_measurement: "°C"
+          mode: slider
+
+    night_start:
+      name: "Nachtbeginn"
+      description: >
+        Uhrzeit, ab der die Nacht-Zieltemperatur gilt.
+        Beispiel: 22:00.
+      default: "22:00:00"
+      selector:
+        time: {}
+
+    night_end:
+      name: "Nachtende"
+      description: >
+        Uhrzeit, ab der wieder die Tages-Zieltemperatur gilt.
+        Beispiel: 07:00.
+      default: "07:00:00"
+      selector:
+        time: {}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Variablen: einmalig berechnen, damit Conditions übersichtlich bleiben
+# ──────────────────────────────────────────────────────────────────────────────
+variables:
+  outdoor_temp: "{{ states(outdoor_temp_sensor) | float(20) }}"
+  indoor_temp:  "{{ states(indoor_temp_sensor)  | float(20) }}"
+  is_summer:    "{{ outdoor_temp >= summer_threshold }}"
+  is_night: >
+    {% set now_time = now().strftime('%H:%M:%S') %}
+    {% if night_start <= night_end %}
+      {{ now_time >= night_start and now_time < night_end }}
+    {% else %}
+      {{ now_time >= night_start or now_time < night_end }}
+    {% endif %}
+  is_present: >
+    {% set state = states(presence_sensor) %}
+    {{ state in ['on', 'home'] }}
+  # Rohe Zieltemperatur je Modus und Tageszeit
+  raw_target: >
+    {% if is_summer %}
+      {% if is_night %}{{ target_temp_night_cool }}{% else %}{{ target_temp_day_cool }}{% endif %}
+    {% else %}
+      {% if is_night %}{{ target_temp_night_heat }}{% else %}{{ target_temp_day_heat }}{% endif %}
+    {% endif %}
+  # Abwesenheitskorrektur
+  effective_target: >
+    {% if is_present %}
+      {{ raw_target }}
+    {% else %}
+      {% if is_summer %}
+        {{ raw_target + away_temp_offset }}
+      {% else %}
+        {{ raw_target - away_temp_offset }}
+      {% endif %}
+    {% endif %}
+  # HVAC-Modus
+  hvac_mode: "{{ 'cool' if is_summer else 'heat' }}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Trigger: bei Zustandsänderungen neu auswerten
+# ──────────────────────────────────────────────────────────────────────────────
+trigger:
+  - platform: state
+    entity_id: !input presence_sensor
+
+  - platform: state
+    entity_id: !input outdoor_temp_sensor
+
+  - platform: state
+    entity_id: !input indoor_temp_sensor
+
+  - platform: time
+    at: !input night_start
+
+  - platform: time
+    at: !input night_end
+
+  # Beim HA-Start initialisieren
+  - platform: homeassistant
+    event: start
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Aktion
+# ──────────────────────────────────────────────────────────────────────────────
+action:
+  - choose:
+
+      # ── Zieltemperatur bereits erreicht → Fan-Only ──────────────────────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {% if is_summer %}
+                {{ indoor_temp <= effective_target }}
+              {% else %}
+                {{ indoor_temp >= effective_target }}
+              {% endif %}
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input climate_entity
+            data:
+              hvac_mode: "fan_only"
+
+    # ── Standardfall: Heizen oder Kühlen auf Zieltemperatur ─────────────────
+    default:
+      - service: climate.set_hvac_mode
+        target:
+          entity_id: !input climate_entity
+        data:
+          hvac_mode: "{{ hvac_mode }}"
+
+      - service: climate.set_temperature
+        target:
+          entity_id: !input climate_entity
+        data:
+          temperature: "{{ effective_target }}"
+
+mode: single
+max_exceeded: silent
