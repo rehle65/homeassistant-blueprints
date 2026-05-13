@@ -1,0 +1,136 @@
+blueprint:
+  name: "🤖 Saugroboter – Anwesenheitsgesteuert"
+  description: >-
+    Version 1.0.0 – Steuert einen Saugroboter anhand der Anwesenheit.
+    Startet automatisch wenn niemand zuhause ist, optional nur in einem
+    bestimmten Zeitfenster und/oder nur an Werktagen. Stoppt den Roboter
+    und schickt ihn zur Basis zurück wenn jemand nach Hause kommt.
+    https://github.com/rehle65/homeassistant-blueprints
+  domain: automation
+  input:
+    vacuum_entity:
+      name: Saugroboter
+      description: Der zu steuernde Saugroboter.
+      selector:
+        entity:
+          domain: vacuum
+    presence_sensor:
+      name: Anwesenheitssensor
+      description: >-
+        Sensor der die Anwesenheit anzeigt. Wenn dieser Sensor nicht aktiv
+        ist (not 'on' / not 'home'), wird der Roboter gestartet.
+      selector:
+        entity:
+          domain:
+            - binary_sensor
+            - person
+            - input_boolean
+    use_schedule:
+      name: Zeitfenster aktivieren
+      description: >-
+        Wenn aktiviert, wird der Roboter nur gestartet wenn die aktuelle
+        Uhrzeit >= dem konfigurierten Startzeitpunkt ist.
+      default: false
+      selector:
+        boolean:
+    schedule_time:
+      name: Früheste Startzeit
+      description: >-
+        Der Roboter wird frühestens ab dieser Uhrzeit gestartet.
+        Wird nur berücksichtigt wenn 'Zeitfenster aktivieren' aktiv ist.
+      default: "10:00:00"
+      selector:
+        time:
+    use_workday:
+      name: Nur an Werktagen
+      description: >-
+        Wenn aktiviert, wird der Roboter nur an Werktagen gestartet.
+        Erfordert die Angabe eines Workday-Sensors.
+      default: false
+      selector:
+        boolean:
+    workday_sensor:
+      name: Workday-Sensor
+      description: >-
+        Binary Sensor der anzeigt ob heute ein Werktag ist (z.B. von der
+        Workday-Integration). Wird nur benötigt wenn 'Nur an Werktagen'
+        aktiviert ist.
+      default: []
+      selector:
+        entity:
+          domain: binary_sensor
+    return_on_arrival:
+      name: Bei Ankunft zur Basis schicken
+      description: >-
+        Wenn aktiviert, wird der Roboter gestoppt und zur Ladestation
+        geschickt sobald jemand nach Hause kommt und der Roboter gerade
+        saugt.
+      default: true
+      selector:
+        boolean:
+
+variables:
+  vacuum_entity: !input vacuum_entity
+  presence_sensor: !input presence_sensor
+  use_schedule: !input use_schedule
+  schedule_time: !input schedule_time
+  use_workday: !input use_workday
+  workday_sensor: !input workday_sensor
+  return_on_arrival: !input return_on_arrival
+  is_present: "{{ states(presence_sensor) in ['on', 'home'] }}"
+  is_workday: >-
+    {{ workday_sensor == [] or workday_sensor == '' or
+       states(workday_sensor) == 'on' }}
+  time_ok: >-
+    {{ not use_schedule or
+       today_at(schedule_time) <= now() }}
+
+trigger:
+  - platform: state
+    entity_id: !input presence_sensor
+    id: presence_away
+  - platform: time
+    at: !input schedule_time
+    id: schedule_trigger
+  - platform: homeassistant
+    event: start
+    id: ha_start
+  - platform: state
+    entity_id: !input presence_sensor
+    id: presence_home
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - presence_away
+              - schedule_trigger
+              - ha_start
+          - condition: template
+            value_template: "{{ not is_present }}"
+          - condition: template
+            value_template: "{{ time_ok }}"
+          - condition: template
+            value_template: "{{ is_workday }}"
+        sequence:
+          - service: vacuum.start
+            target:
+              entity_id: !input vacuum_entity
+      - conditions:
+          - condition: trigger
+            id: presence_home
+          - condition: template
+            value_template: "{{ return_on_arrival }}"
+          - condition: state
+            entity_id: !input vacuum_entity
+            state: cleaning
+        sequence:
+          - service: vacuum.return_to_base
+            target:
+              entity_id: !input vacuum_entity
+
+mode: single
+max_exceeded: silent

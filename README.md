@@ -239,3 +239,172 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 > 💡 **Ursprüngliches Blueprint:** Inspiriert von [Blackshome's Sensor Light](https://gist.github.com/Blackshome/6edfec0ff6a25c5da0d07b88dc908238) –
 > das Original bietet deutlich mehr Optionen (95 Eingabefelder), falls du
 > komplexere Szenarien benötigst.
+
+---
+
+## 🤖 Saugroboter – Anwesenheitsgesteuert
+
+Startet den Saugroboter automatisch wenn alle das Haus verlassen haben – und schickt ihn zurück zur Basis wenn jemand nach Hause kommt. Optional mit Zeitfenster und Werktags-Filter.
+
+### Features
+
+- 🏠 Startet automatisch wenn niemand zuhause ist
+- ⏰ Optionales Zeitfenster – nicht vor einer bestimmten Uhrzeit starten
+- 📅 Optionaler Werktags-Filter (nutzt den Workday-Sensor)
+- 🔙 Roboter dockt automatisch wenn jemand nach Hause kommt
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fvacuum_presence.yaml)
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/vacuum_presence.yaml
+```
+
+### Konfigurierbare Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Saugroboter | vacuum-Entität | – |
+| Anwesenheitssensor | Person, binary_sensor oder input_boolean | – |
+| Zeitfenster aktivieren | Früheste Startzeit einschalten | nein |
+| Früheste Startzeit | Nicht vor dieser Uhrzeit starten | 10:00 |
+| Nur Werktags | Werktags-Filter aktivieren | nein |
+| Workday-Sensor | binary_sensor.workday_sensor | – |
+| Rückkehr bei Ankunft | Roboter bei Heimkehr zur Basis schicken | ja |
+
+---
+
+## 🚨 NINA-Warnung – Benachrichtigung
+
+Sendet eine Benachrichtigung wenn ein NINA-Warnsensor aktiv wird – und optional eine Entwarnung wenn die Warnung aufgehoben wird. Unterstützt bis zu 3 Warnsensoren gleichzeitig.
+
+### Features
+
+- 🚨 Sofortige Benachrichtigung bei aktiver Warnung
+- ✅ Optionale Entwarnung wenn Warnung aufgehoben wird
+- 📡 Bis zu 3 NINA-Sensoren parallel überwachen
+- 📱 Frei wählbarer Benachrichtigungskanal
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fnina_warning.yaml)
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/nina_warning.yaml
+```
+
+### Konfigurierbare Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Warnsensor | Primärer NINA binary_sensor | – |
+| Benachrichtigungsservice | z. B. notify.mobile_app_pixel | notify.notify |
+| Benachrichtigungstitel | Titel der Push-Nachricht | ⚠️ NINA-Warnung |
+| Entwarnung senden | Nachricht bei Aufhebung der Warnung | ja |
+| Weitere Sensoren aktivieren | 2. und 3. Sensor einbinden | nein |
+| Warnsensor 2 | Zweiter NINA-Sensor | – |
+| Warnsensor 3 | Dritter NINA-Sensor | – |
+
+---
+
+## 🔒 Haustür – Automatisch sperren & Benachrichtigungen
+
+Sperrt die Haustür automatisch wenn alle das Haus verlassen, schließt sie optional bei Ankunft auf und sendet eine Benachrichtigung wenn die Tür zu lange offen steht.
+
+### Features
+
+- 🔒 Automatisch abschließen X Minuten nach dem Verlassen
+- 🔓 Automatisch aufschließen bei Ankunft (optional)
+- 🔔 Benachrichtigung wenn Tür länger als X Minuten offen steht
+- 🏠 Anwesenheitserkennung via Person, binary_sensor oder input_boolean
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fdoor_lock.yaml)
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/door_lock.yaml
+```
+
+### Konfigurierbare Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Schloss | lock-Entität der Haustür | – |
+| Türsensor | binary_sensor (device_class: door) | – |
+| Anwesenheitssensor | Person, binary_sensor oder input_boolean | – |
+| Auto-Abschließen | Automatisch sperren bei Abwesenheit | ja |
+| Verzögerung Abschließen | Minuten nach Verlassen bis zum Sperren | 5 min |
+| Auto-Aufschließen | Automatisch entsperren bei Ankunft | nein |
+| Benachrichtigung offene Tür | Meldung wenn Tür zu lange offen | ja |
+| Timeout offene Tür | Minuten bis zur Benachrichtigung | 10 min |
+| Benachrichtigungsservice | z. B. notify.mobile_app_pixel | notify.notify |
+
+---
+
+## ✅ Gerät fertig – Benachrichtigung
+
+Sendet eine Benachrichtigung wenn ein Gerät (Waschmaschine, Kaffeemaschine usw.) seinen Betrieb beendet hat. Eine konfigurierbare Mindestlaufzeit verhindert Fehlauslösungen durch kurze Signale.
+
+### Features
+
+- 📱 Benachrichtigung wenn das Gerät fertig ist
+- ⏱️ Mindestlaufzeit verhindert Fehlauslösungen
+- 🏠 Optional nur benachrichtigen wenn jemand zuhause ist
+- 🔧 Funktioniert mit jedem binary_sensor (on = läuft)
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fappliance_done.yaml)
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/appliance_done.yaml
+```
+
+### Konfigurierbare Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Gerätesensor | binary_sensor – on = Gerät läuft | – |
+| Gerätename | Name in der Benachrichtigung | Gerät |
+| Benachrichtigungsservice | z. B. notify.mobile_app_pixel | notify.notify |
+| Benachrichtigungstitel | Titel der Nachricht | ✅ Gerät fertig |
+| Mindestlaufzeit | Minuten Laufzeit bevor "fertig" gilt | 5 min |
+| Nur bei Anwesenheit | Nur benachrichtigen wenn jemand zuhause | nein |
+| Anwesenheitssensor | Person, binary_sensor oder input_boolean | – |
+
+---
+
+## 🪟 Dachfenster – Automatisch schließen
+
+Schließt Dachfenster automatisch nachts und öffnet sie optional morgens wieder. Unterstützt auch das Schließen bei Abwesenheit und eine optionale Benachrichtigung.
+
+### Features
+
+- 🌙 Automatisch schließen ab konfigurierbarer Uhrzeit
+- 🌅 Optional morgens automatisch öffnen
+- 🏠 Optional schließen wenn niemand zuhause ist
+- 🔔 Optionale Benachrichtigung beim automatischen Schließen
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fskylight_control.yaml)
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/skylight_control.yaml
+```
+
+### Konfigurierbare Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Dachfenster | cover-Entität | – |
+| Nachts schließen | Automatisch schließen ab Uhrzeit | ja |
+| Schließen um | Uhrzeit zum automatischen Schließen | 22:00 |
+| Morgens öffnen | Automatisch öffnen ab Uhrzeit | nein |
+| Öffnen um | Uhrzeit zum automatischen Öffnen | 07:00 |
+| Schließen bei Abwesenheit | Fenster schließen wenn niemand zuhause | nein |
+| Anwesenheitssensor | Person, binary_sensor oder input_boolean | – |
+| Benachrichtigung | Meldung beim automatischen Schließen | nein |
+| Benachrichtigungsservice | z. B. notify.mobile_app_pixel | notify.notify |

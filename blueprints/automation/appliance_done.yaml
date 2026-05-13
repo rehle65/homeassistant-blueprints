@@ -1,0 +1,100 @@
+blueprint:
+  name: "✅ Gerät fertig – Benachrichtigung"
+  description: >-
+    Sendet eine Benachrichtigung, wenn ein Gerät (z. B. Waschmaschine,
+    Kaffeemaschine) seinen Betrieb beendet hat. Eine Mindestlaufzeit verhindert
+    Fehlauslösungen bei kurzen Zustandsschwankungen. Optional wird die
+    Benachrichtigung nur gesendet, wenn jemand zu Hause ist.
+    Version 1.0.0 – https://github.com/rehle65/homeassistant-blueprints
+  domain: automation
+  input:
+    appliance_sensor:
+      name: Geräte-Sensor
+      description: Binärsensor, der meldet ob das Gerät läuft (on = läuft, off = fertig).
+      selector:
+        entity:
+          domain: binary_sensor
+    appliance_name:
+      name: Gerätename
+      description: Name des Geräts für die Benachrichtigungsnachricht.
+      default: "Gerät"
+      selector:
+        text:
+    notify_service:
+      name: Benachrichtigungsservice
+      description: "Home Assistant Notify-Service, z. B. notify.notify oder notify.mobile_app_phone."
+      default: "notify.notify"
+      selector:
+        text:
+    notify_title:
+      name: Benachrichtigungstitel
+      description: Titel der Benachrichtigung.
+      default: "✅ Gerät fertig"
+      selector:
+        text:
+    min_run_time:
+      name: Mindestlaufzeit (Minuten)
+      description: Das Gerät muss mindestens diese Anzahl an Minuten aktiv gewesen sein, bevor eine Benachrichtigung gesendet wird.
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: min
+          mode: slider
+    presence_only:
+      name: Nur bei Anwesenheit benachrichtigen
+      description: Wenn aktiviert, wird die Benachrichtigung nur gesendet, wenn der Anwesenheitssensor auf "home" oder "on" steht.
+      default: false
+      selector:
+        boolean:
+    presence_sensor:
+      name: Anwesenheitssensor
+      description: "Person, binary_sensor oder input_boolean zur Anwesenheitserkennung (nur relevant wenn 'Nur bei Anwesenheit' aktiviert ist)."
+      default: []
+      selector:
+        entity:
+          domain:
+            - binary_sensor
+            - person
+            - input_boolean
+
+mode: single
+max_exceeded: silent
+
+variables:
+  appliance_sensor: !input appliance_sensor
+  appliance_name: !input appliance_name
+  min_run_time: !input min_run_time
+  presence_only: !input presence_only
+  presence_sensor: !input presence_sensor
+  run_time_minutes: >-
+    {{ ((now() - states[appliance_sensor].last_changed).total_seconds() / 60) | round(1) }}
+  is_present: >-
+    {% if not presence_only %}
+      true
+    {% elif presence_sensor | length > 0 %}
+      {{ states(presence_sensor) in ['home', 'on'] }}
+    {% else %}
+      true
+    {% endif %}
+
+trigger:
+  - platform: state
+    entity_id: !input appliance_sensor
+    from: "on"
+    to: "off"
+
+condition:
+  - condition: template
+    value_template: >-
+      {{ run_time_minutes >= min_run_time }}
+  - condition: template
+    value_template: >-
+      {{ is_present | bool }}
+
+action:
+  - service: "{{ notify_service }}"
+    data:
+      title: !input notify_title
+      message: "{{ appliance_name }} ist fertig."

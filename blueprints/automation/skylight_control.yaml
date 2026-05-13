@@ -1,0 +1,188 @@
+blueprint:
+  name: "\U0001FA9F Dachfenster – Automatisch schlie\xDFen"
+  description: >-
+    Version 1.0.0 — Automatisiert Dachfenster: Schlie\xDFen zur Nachtzeit, \xF6ffnen am
+    Morgen, Schlie\xDFen bei Abwesenheit und optionale Benachrichtigungen.
+    Quelle: https://github.com/rehle65/homeassistant-blueprints
+  domain: automation
+  input:
+    cover_entity:
+      name: Dachfenster
+      description: Das zu steuernde Dachfenster (cover-Entit\xE4t).
+      selector:
+        entity:
+          domain: cover
+    close_at_night:
+      name: Nachts automatisch schlie\xDFen
+      description: Dachfenster zur angegebenen Uhrzeit automatisch schlie\xDFen.
+      default: true
+      selector:
+        boolean:
+    night_close_time:
+      name: Uhrzeit zum Schlie\xDFen
+      description: Uhrzeit, zu der das Dachfenster nachts geschlossen wird.
+      default: "22:00:00"
+      selector:
+        time:
+    auto_open_morning:
+      name: Morgens automatisch \xF6ffnen
+      description: Dachfenster morgens zur angegebenen Uhrzeit automatisch \xF6ffnen.
+      default: false
+      selector:
+        boolean:
+    morning_open_time:
+      name: Uhrzeit zum \xD6ffnen
+      description: Uhrzeit, zu der das Dachfenster morgens ge\xF6ffnet wird (optional).
+      default: "07:00:00"
+      selector:
+        time:
+    close_on_absence:
+      name: Schlie\xDFen bei Abwesenheit
+      description: Dachfenster schlie\xDFen, wenn niemand zuhause ist.
+      default: false
+      selector:
+        boolean:
+    presence_sensor:
+      name: Anwesenheitssensor
+      description: Sensor f\xFCr die Anwesenheitserkennung (nur bei Schlie\xDFen bei Abwesenheit relevant).
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: binary_sensor
+            - domain: person
+            - domain: input_boolean
+    notify_on_close:
+      name: Benachrichtigung beim Schlie\xDFen
+      description: Benachrichtigung senden, wenn das Dachfenster automatisch geschlossen wird.
+      default: false
+      selector:
+        boolean:
+    notify_service:
+      name: Benachrichtigungsservice
+      description: Home Assistant Benachrichtigungsservice (z. B. notify.notify).
+      default: "notify.notify"
+      selector:
+        text:
+
+variables:
+  cover_entity: !input cover_entity
+  close_at_night: !input close_at_night
+  night_close_time: !input night_close_time
+  morning_open_time: !input morning_open_time
+  auto_open_morning: !input auto_open_morning
+  close_on_absence: !input close_on_absence
+  presence_sensor: !input presence_sensor
+  notify_on_close: !input notify_on_close
+  notify_service: !input notify_service
+  is_night: >-
+    {% set now_time = now().strftime('%H:%M:%S') %}
+    {% set night = night_close_time %}
+    {% set morning = morning_open_time %}
+    {% if night > morning %}
+      {{ now_time >= night or now_time < morning }}
+    {% else %}
+      {{ now_time >= night and now_time < morning }}
+    {% endif %}
+  is_present: >-
+    {% if presence_sensor is string %}
+      {% set sensors = [presence_sensor] %}
+    {% else %}
+      {% set sensors = presence_sensor %}
+    {% endif %}
+    {% set ns = namespace(present=false) %}
+    {% for s in sensors %}
+      {% if states(s) in ['home', 'on'] %}
+        {% set ns.present = true %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.present }}
+
+trigger:
+  - platform: time
+    at: !input night_close_time
+    id: night_close
+  - platform: time
+    at: !input morning_open_time
+    id: morning_open
+  - platform: state
+    entity_id: !input presence_sensor
+    id: presence_changed
+  - platform: homeassistant
+    event: start
+    id: ha_start
+
+mode: single
+max_exceeded: silent
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: night_close
+          - condition: template
+            value_template: "{{ close_at_night }}"
+        sequence:
+          - service: cover.close_cover
+            target:
+              entity_id: !input cover_entity
+          - if:
+              - condition: template
+                value_template: "{{ notify_on_close }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  message: >-
+                    Das Dachfenster wurde automatisch zur Nachtzeit geschlossen.
+                  title: "Dachfenster geschlossen"
+
+      - conditions:
+          - condition: trigger
+            id: morning_open
+          - condition: template
+            value_template: "{{ auto_open_morning }}"
+        sequence:
+          - service: cover.open_cover
+            target:
+              entity_id: !input cover_entity
+
+      - conditions:
+          - condition: trigger
+            id: presence_changed
+          - condition: template
+            value_template: "{{ close_on_absence }}"
+          - condition: template
+            value_template: "{{ not is_present }}"
+        sequence:
+          - service: cover.close_cover
+            target:
+              entity_id: !input cover_entity
+          - if:
+              - condition: template
+                value_template: "{{ notify_on_close }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  message: >-
+                    Das Dachfenster wurde automatisch geschlossen, da niemand zuhause ist.
+                  title: "Dachfenster geschlossen"
+
+      - conditions:
+          - condition: trigger
+            id: ha_start
+          - condition: template
+            value_template: "{{ close_at_night and is_night }}"
+        sequence:
+          - service: cover.close_cover
+            target:
+              entity_id: !input cover_entity
+          - if:
+              - condition: template
+                value_template: "{{ notify_on_close }}"
+            then:
+              - service: "{{ notify_service }}"
+                data:
+                  message: >-
+                    Das Dachfenster wurde nach HA-Neustart automatisch geschlossen (Nachtzeit).
+                  title: "Dachfenster geschlossen"

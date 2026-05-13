@@ -1,0 +1,160 @@
+blueprint:
+  name: "\U0001F512 Haustür – Automatisch sperren & Benachrichtigungen"
+  description: >-
+    Version 1.0.0 – Automatisiert das Sperren und Aufschließen der Haustür
+    basierend auf Anwesenheit. Sendet Benachrichtigungen wenn die Tür zu lange
+    offen bleibt. Weitere Blueprints: https://github.com/rehle65/homeassistant-blueprints
+  domain: automation
+  input:
+    lock_entity:
+      name: Schloss
+      description: Das zu steuernde Türschloss.
+      selector:
+        entity:
+          domain: lock
+    door_sensor:
+      name: Türsensor
+      description: Binärsensor der erkennt, ob die Tür offen oder geschlossen ist.
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: door
+    presence_sensor:
+      name: Anwesenheitssensor
+      description: Sensor, Person oder Eingabe-Boolean der die Anwesenheit anzeigt.
+      selector:
+        entity:
+          domain:
+            - binary_sensor
+            - person
+            - input_boolean
+    auto_lock:
+      name: Automatisch abschließen
+      description: Tür automatisch abschließen wenn niemand zu Hause ist.
+      default: true
+      selector:
+        boolean:
+    auto_lock_delay:
+      name: Verzögerung vor dem Abschließen (Minuten)
+      description: Wie viele Minuten nach Verlassen soll die Tür abgeschlossen werden.
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 30
+          unit_of_measurement: min
+          mode: slider
+    auto_unlock:
+      name: Automatisch aufschließen
+      description: Tür automatisch aufschließen wenn jemand nach Hause kommt.
+      default: false
+      selector:
+        boolean:
+    notify_open:
+      name: Benachrichtigung bei offener Tür
+      description: Benachrichtigung senden wenn die Tür zu lange offen bleibt.
+      default: true
+      selector:
+        boolean:
+    open_timeout:
+      name: Timeout offene Tür (Minuten)
+      description: Nach wie vielen Minuten soll eine Benachrichtigung gesendet werden.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: min
+          mode: slider
+    notify_service:
+      name: Benachrichtigungsservice
+      description: Der Benachrichtigungsservice der verwendet werden soll.
+      default: notify.notify
+      selector:
+        text:
+
+variables:
+  is_present: >-
+    {{ is_state(presence_sensor, 'home') or is_state(presence_sensor, 'on') }}
+  door_open: >-
+    {{ is_state(door_sensor, 'on') }}
+
+trigger:
+  - platform: state
+    entity_id: !input presence_sensor
+    id: presence_changed
+  - platform: state
+    entity_id: !input door_sensor
+    to: "on"
+    id: door_opened
+  - platform: homeassistant
+    event: start
+    id: ha_start
+
+mode: single
+max_exceeded: silent
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: presence_changed
+          - condition: template
+            value_template: "{{ not is_present }}"
+          - condition: template
+            value_template: "{{ is_state(auto_lock | string, 'true') or auto_lock == true }}"
+        sequence:
+          - delay:
+              minutes: !input auto_lock_delay
+          - condition: template
+            value_template: "{{ not door_open }}"
+          - service: lock.lock
+            target:
+              entity_id: !input lock_entity
+
+      - conditions:
+          - condition: trigger
+            id: presence_changed
+          - condition: template
+            value_template: "{{ is_present }}"
+          - condition: template
+            value_template: "{{ is_state(auto_unlock | string, 'true') or auto_unlock == true }}"
+        sequence:
+          - service: lock.unlock
+            target:
+              entity_id: !input lock_entity
+
+      - conditions:
+          - condition: trigger
+            id: door_opened
+          - condition: template
+            value_template: "{{ is_state(notify_open | string, 'true') or notify_open == true }}"
+        sequence:
+          - wait_template: "{{ not door_open }}"
+            timeout:
+              minutes: !input open_timeout
+            continue_on_timeout: true
+          - condition: template
+            value_template: "{{ door_open }}"
+          - service: !input notify_service
+            data:
+              title: "\U0001F512 Haustür steht offen"
+              message: >-
+                Die Haustür ist seit mehr als {{ open_timeout }} Minuten offen!
+
+      - conditions:
+          - condition: trigger
+            id: ha_start
+          - condition: template
+            value_template: "{{ not is_present }}"
+          - condition: template
+            value_template: "{{ is_state(auto_lock | string, 'true') or auto_lock == true }}"
+          - condition: template
+            value_template: "{{ not door_open }}"
+          - condition: state
+            entity_id: !input lock_entity
+            state: unlocked
+        sequence:
+          - service: lock.lock
+            target:
+              entity_id: !input lock_entity

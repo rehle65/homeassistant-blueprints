@@ -1,0 +1,152 @@
+blueprint:
+  name: "🚨 NINA-Warnung – Benachrichtigung"
+  description: >-
+    Version 1.0.0 – Sendet Push-Benachrichtigungen bei aktiven NINA-Warnungen
+    (Bevölkerungsschutz). Unterstützt bis zu drei Warnsensoren und optionale
+    Entwarnung beim Abklingen. Weitere Informationen und Updates:
+    https://github.com/rehle65/homeassistant-blueprints
+  domain: automation
+  source_url: https://github.com/rehle65/homeassistant-blueprints
+  input:
+    warning_sensor:
+      name: NINA-Warnsensor (primär)
+      description: >-
+        Der primäre NINA-Warnsensor, z.B.
+        binary_sensor.nina_warning_giessen_...
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: safety
+
+    notify_service:
+      name: Notify-Service
+      description: >-
+        Name des Benachrichtigungs-Services, z.B. notify.mobile_app_pixel
+        oder notify.notify für alle registrierten Geräte.
+      default: notify.notify
+      selector:
+        text:
+
+    notify_title:
+      name: Benachrichtigungstitel
+      description: Titel der Benachrichtigung bei einer aktiven NINA-Warnung.
+      default: "⚠️ NINA-Warnung"
+      selector:
+        text:
+
+    notify_on_clear:
+      name: Entwarnung senden
+      description: >-
+        Wenn aktiviert, wird beim Abklingen der Warnung (Sensor → off) eine
+        Entwarnung gesendet.
+      default: true
+      selector:
+        boolean:
+
+    additional_sensors:
+      name: Weitere Warnsensoren aktivieren
+      description: >-
+        Aktiviert die Felder für einen zweiten und dritten Warnsensor. Die
+        Sensoren müssen danach ebenfalls ausgewählt werden.
+      default: false
+      selector:
+        boolean:
+
+    warning_sensor_2:
+      name: NINA-Warnsensor 2 (optional)
+      description: Zweiter optionaler Warnsensor (nur wenn weitere Sensoren aktiviert).
+      default: []
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: safety
+          multiple: false
+
+    warning_sensor_3:
+      name: NINA-Warnsensor 3 (optional)
+      description: Dritter optionaler Warnsensor (nur wenn weitere Sensoren aktiviert).
+      default: []
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: safety
+          multiple: false
+
+mode: queued
+max: 10
+
+variables:
+  warning_sensor: !input warning_sensor
+  warning_sensor_2: !input warning_sensor_2
+  warning_sensor_3: !input warning_sensor_3
+  notify_service: !input notify_service
+  notify_title: !input notify_title
+  notify_on_clear: !input notify_on_clear
+  additional_sensors: !input additional_sensors
+
+trigger:
+  - platform: state
+    entity_id: !input warning_sensor
+    to: "on"
+    id: sensor_1_on
+  - platform: state
+    entity_id: !input warning_sensor
+    to: "off"
+    id: sensor_1_off
+  - platform: state
+    entity_id: !input warning_sensor_2
+    to: "on"
+    id: sensor_2_on
+  - platform: state
+    entity_id: !input warning_sensor_2
+    to: "off"
+    id: sensor_2_off
+  - platform: state
+    entity_id: !input warning_sensor_3
+    to: "on"
+    id: sensor_3_on
+  - platform: state
+    entity_id: !input warning_sensor_3
+    to: "off"
+    id: sensor_3_off
+
+action:
+  - variables:
+      triggered_entity: "{{ trigger.entity_id }}"
+      sensor_name: >-
+        {{ state_attr(trigger.entity_id, 'friendly_name') | default(trigger.entity_id, true) }}
+      timestamp_now: "{{ now().strftime('%d.%m.%Y %H:%M:%S') }}"
+
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - sensor_1_on
+              - sensor_2_on
+              - sensor_3_on
+        sequence:
+          - service: "{{ notify_service }}"
+            data:
+              title: "{{ notify_title }}"
+              message: >-
+                🚨 Aktive Warnung: {{ sensor_name }}
+                Zeitpunkt: {{ timestamp_now }}
+                Bitte informieren Sie sich über offizielle Kanäle und
+                befolgen Sie die Anweisungen der Behörden.
+
+      - conditions:
+          - condition: trigger
+            id:
+              - sensor_1_off
+              - sensor_2_off
+              - sensor_3_off
+          - condition: template
+            value_template: "{{ notify_on_clear }}"
+        sequence:
+          - service: "{{ notify_service }}"
+            data:
+              title: "{{ notify_title }}"
+              message: >-
+                ✅ Entwarnung: {{ sensor_name }}
+                Zeitpunkt: {{ timestamp_now }}
+                Die Warnung wurde aufgehoben.
