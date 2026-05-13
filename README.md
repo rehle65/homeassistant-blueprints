@@ -147,3 +147,29 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 > ⚠️ **Hinweis:** Der Urlaubsmodus-Schalter muss manuell als Helfer in Home Assistant angelegt werden.
 > Einstellungen → Helfer → Helfer hinzufügen → Schalter → Name z. B. `Urlaubsmodus`.
 > Die Entität lautet dann `input_boolean.urlaubsmodus`.
+
+---
+
+## 📖 Hinweise zur Verwendung
+
+### Multisplit-Klimaanlagen (1 Außeneinheit, mehrere Innengeräte)
+
+Bei einer Multisplit-Anlage legst du einfach **eine separate Automatisierung pro Innengerät** an – das Blueprint muss nicht angepasst werden. Wichtige Punkte:
+
+**Konfiguration:**
+- Jede Automatisierung erhält das zugehörige Innengerät (`climate.wohnzimmer`, `climate.schlafzimmer`, usw.) und dessen eigenen Innentemperatur-Sensor
+- Alle Automatisierungen verwenden **denselben Außentemperatur-Sensor** – dadurch schalten alle Geräte immer in denselben Modus (Heizen oder Kühlen) und ein gleichzeitiger Mischbetrieb wird verhindert
+
+**Warum kein Mischbetrieb?**
+Die meisten Multisplit-Außeneinheiten können nicht gleichzeitig heizen und kühlen. Da das Blueprint den Modus anhand der Außentemperatur bestimmt, wechseln alle Instanzen immer gemeinsam – das entspricht dem technischen Verhalten der Anlage.
+
+**Minimale Laufzeit:**
+Bei Multisplit-Anlagen empfiehlt sich ein etwas höherer Wert für die minimale Laufzeit (15–20 Minuten statt 10), da kurze Zyklen eines einzelnen Innengeräts die gesamte Außeneinheit belasten.
+
+**Beispiel-Setup für 3 Innengeräte:**
+
+| Automatisierung | Klimagerät | Innen-Sensor | Außen-Sensor |
+|---|---|---|---|
+| Klimaanlage Wohnzimmer | `climate.wohnzimmer` | `sensor.temp_wohnzimmer` | `sensor.aussentemperatur` |
+| Klimaanlage Schlafzimmer | `climate.schlafzimmer` | `sensor.temp_schlafzimmer` | `sensor.aussentemperatur` |
+| Klimaanlage Büro | `climate.buero` | `sensor.temp_buero` | `sensor.aussentemperatur` |
