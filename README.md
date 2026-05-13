@@ -175,3 +175,63 @@ Bei Multisplit-Anlagen empfiehlt sich ein etwas höherer Wert für die minimale 
 | Klimaanlage Wohnzimmer | `climate.wohnzimmer` | `sensor.temp_wohnzimmer` | `sensor.aussentemperatur` |
 | Klimaanlage Schlafzimmer | `climate.schlafzimmer` | `sensor.temp_schlafzimmer` | `sensor.aussentemperatur` |
 | Klimaanlage Büro | `climate.buero` | `sensor.temp_buero` | `sensor.aussentemperatur` |
+
+---
+
+## 💡 Sensor Licht – Einfach & Effizient
+
+Schaltet Lichter automatisch per Bewegungsmelder – mit optionaler Helligkeit,
+Farbtemperatur, Nachtmodus, Dimmen vor dem Ausschalten und Bypass-Schalter.
+Basiert auf dem Prinzip von [Blackshome's Sensor Light](https://gist.github.com/Blackshome/6edfec0ff6a25c5da0d07b88dc908238),
+radikal vereinfacht nach dem KISS-Prinzip (21 statt 95 Eingabefelder).
+
+### Features
+
+- 🚶 Bewegungsmelder schaltet Licht ein und startet den Ausschalttimer
+- 💡 Optionale Helligkeit und Farbtemperatur (getrennt ein-/ausschaltbar)
+- 🌙 Nachtmodus mit eigener Helligkeit und Farbtemperatur
+- 🌅 Umgebungslicht-Sperre – kein Einschalten wenn es schon hell genug ist
+- 🕯️ Dimmen vor dem Ausschalten (optional)
+- 🔘 Bypass-Schalter hält das Licht dauerhaft an
+- 🔁 Neuer Bewegungsimpuls startet den Timer neu
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fsensor_light_simple.yaml)
+
+Oder manuell über **Einstellungen → Automatisierungen → Blueprints → Blueprint importieren** mit folgender URL:
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/sensor_light_simple.yaml
+```
+
+### Konfigurierbare Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Bewegungsmelder | binary_sensor der den Trigger liefert | – |
+| Licht / Gruppe | Licht oder Lichtgruppe die gesteuert wird | – |
+| Ausschaltverzögerung | Wartezeit nach letzter Bewegung | 5 min |
+| Helligkeit aktivieren | Helligkeit beim Einschalten setzen | nein |
+| Helligkeit | Ziel-Helligkeit in % | 80 % |
+| Farbtemperatur aktivieren | Farbtemperatur beim Einschalten setzen | nein |
+| Farbtemperatur | Ziel-Farbtemperatur in Mirek | 250 |
+| Überblendzeit Ein | Transition beim Einschalten | 1 s |
+| Überblendzeit Aus | Transition beim Ausschalten | 2 s |
+| Dimmen vor Ausschalten | Kurz vor dem Ausschalten dimmen | nein |
+| Dimm-Helligkeit | Helligkeit während des Dimmens | 10 % |
+| Dimm-Wartezeit | Wie lange gedimmt bleibt vor Ausschalten | 30 s |
+| Nachtmodus aktivieren | Eigene Werte für die Nacht | nein |
+| Nachtbeginn | Beginn des Nachtmodus | 22:00 |
+| Nachtende | Ende des Nachtmodus | 07:00 |
+| Nacht-Helligkeit | Helligkeit im Nachtmodus | 20 % |
+| Nacht-Farbtemperatur | Farbtemperatur im Nachtmodus | 400 |
+| Bypass aktivieren | Bypass-Schalter einbinden | nein |
+| Bypass-Schalter | input_boolean der den Bypass steuert | – |
+| Umgebungslicht aktivieren | Einschalten bei zu viel Licht sperren | nein |
+| Umgebungslicht-Sensor | Sensor für Umgebungshelligkeit | – |
+| Umgebungslicht Max. (lx) | Schwellwert – darüber kein Einschalten | 200 lx |
+
+> 💡 **Ursprüngliches Blueprint:** Inspiriert von [Blackshome's Sensor Light](https://gist.github.com/Blackshome/6edfec0ff6a25c5da0d07b88dc908238) –
+> das Original bietet deutlich mehr Optionen (95 Eingabefelder), falls du
+> komplexere Szenarien benötigst.

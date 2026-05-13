@@ -1,0 +1,458 @@
+blueprint:
+  name: "💡 Sensor Licht – Einfach & Effizient"
+  description: >-
+    Version 1.0.0 | https://github.com/rehle65/homeassistant-blueprints
+
+    Bewegungsgesteuerte Beleuchtung nach dem KISS-Prinzip. Inspiriert von
+    https://gist.github.com/Blackshome/6edfec0ff6a25c5da0d07b88dc908238 –
+    vereinfacht auf das Wesentliche ohne Funktionsverlust.
+
+    Kernfunktionen: Licht ein bei Bewegung, aus nach Zeitverzögerung,
+    optionaler Nachtmodus mit anderer Helligkeit und Farbe, Bypass-Schalter,
+    Umgebungslicht-Sperre und Dim-Before-OFF Warnung.
+
+  domain: automation
+  source_url: https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/sensor_light_simple.yaml
+
+  input:
+
+    # ── Pflichtfelder ─────────────────────────────────────────────────────────
+
+    motion_sensor:
+      name: "Bewegungssensor *"
+      description: >
+        Binärer Sensor der die Bewegungserkennung auslöst (z. B.
+        binary_sensor.flur_bewegung). Mehrere Sensoren möglich – das Licht
+        bleibt an solange mindestens einer aktiv ist.
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
+
+    light_target:
+      name: "Licht / Schalter *"
+      description: >
+        Das Licht oder der Schalter der gesteuert werden soll. Auch mehrere
+        Entitäten oder Gruppen möglich.
+      selector:
+        target:
+          entity:
+            domain:
+              - light
+              - switch
+
+    # ── Zeitverzögerung ───────────────────────────────────────────────────────
+
+    time_delay:
+      name: "Ausschaltverzögerung (Minuten)"
+      description: >
+        Wie lange das Licht nach der letzten Bewegung noch an bleiben soll.
+        Der Timer startet neu sobald erneut Bewegung erkannt wird.
+        Standard: 5 Minuten.
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 0.5
+          unit_of_measurement: "min"
+          mode: slider
+
+    # ── Normale Lichteinstellungen ────────────────────────────────────────────
+
+    use_brightness:
+      name: "Helligkeit steuern"
+      description: >
+        Aktiviert die Helligkeitssteuerung. Nur für Licht-Entitäten (light.*).
+        Bei Schaltern (switch.*) ignoriert.
+      default: false
+      selector:
+        boolean: {}
+
+    brightness:
+      name: "Helligkeit (%)"
+      description: >
+        Helligkeit des Lichts beim Einschalten (1–100 %). Nur aktiv wenn
+        'Helligkeit steuern' eingeschaltet ist.
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+    use_colour:
+      name: "Farbtemperatur steuern"
+      description: >
+        Aktiviert die Farbtemperatursteuerung. Nur für Licht-Entitäten die
+        Farbtemperatur unterstützen.
+      default: false
+      selector:
+        boolean: {}
+
+    colour_temperature:
+      name: "Farbtemperatur (Kelvin)"
+      description: >
+        Farbtemperatur beim Einschalten. Niedrige Werte (2700–3000 K) = warmes
+        Licht, hohe Werte (5000–6500 K) = kaltes Tageslicht. Nur aktiv wenn
+        'Farbtemperatur steuern' eingeschaltet ist.
+      default: 4000
+      selector:
+        number:
+          min: 2000
+          max: 6500
+          step: 100
+          unit_of_measurement: "K"
+          mode: slider
+
+    transition_on:
+      name: "Einblend-Zeit (Sekunden)"
+      description: >
+        Übergangszeit beim Einschalten in Sekunden. 0 = sofort.
+        Standard: 1 Sekunde.
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 5
+          step: 0.5
+          unit_of_measurement: "s"
+          mode: slider
+
+    transition_off:
+      name: "Ausblend-Zeit (Sekunden)"
+      description: >
+        Übergangszeit beim Ausschalten in Sekunden. 0 = sofort.
+        Standard: 2 Sekunden.
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.5
+          unit_of_measurement: "s"
+          mode: slider
+
+    # ── Dim Before OFF ────────────────────────────────────────────────────────
+
+    use_dim_before_off:
+      name: "Dim-Before-OFF Warnung"
+      description: >
+        Dimmt das Licht kurz vor dem Ausschalten als Vorwarnung. Das Licht
+        wird auf die eingestellte Helligkeit reduziert und nach der
+        Wartezeit vollständig ausgeschaltet. Nur für Licht-Entitäten.
+      default: false
+      selector:
+        boolean: {}
+
+    dim_before_off_brightness:
+      name: "Dim-Before-OFF Helligkeit (%)"
+      description: >
+        Auf diese Helligkeit wird das Licht als Vorwarnung gedimmt.
+        Standard: 20 %.
+      default: 20
+      selector:
+        number:
+          min: 1
+          max: 50
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+    dim_before_off_delay:
+      name: "Dim-Before-OFF Wartezeit (Sekunden)"
+      description: >
+        Wie lange das gedimmte Licht als Vorwarnung sichtbar bleibt bevor
+        es vollständig ausschaltet. Standard: 30 Sekunden.
+      default: 30
+      selector:
+        number:
+          min: 5
+          max: 120
+          step: 5
+          unit_of_measurement: "s"
+          mode: slider
+
+    # ── Nachtmodus ────────────────────────────────────────────────────────────
+
+    use_night_mode:
+      name: "Nachtmodus aktivieren"
+      description: >
+        Aktiviert den Nachtmodus mit separaten Lichteinstellungen. Der
+        Nachtmodus greift wenn die aktuelle Uhrzeit zwischen Nachtbeginn
+        und Nachtende liegt.
+      default: false
+      selector:
+        boolean: {}
+
+    night_start:
+      name: "Nachtmodus – Beginn"
+      description: >
+        Ab dieser Uhrzeit gilt der Nachtmodus mit gedimmtem Licht.
+        Standard: 22:00.
+      default: "22:00:00"
+      selector:
+        time: {}
+
+    night_end:
+      name: "Nachtmodus – Ende"
+      description: >
+        Ab dieser Uhrzeit gilt wieder der normale Modus.
+        Standard: 07:00.
+      default: "07:00:00"
+      selector:
+        time: {}
+
+    night_brightness:
+      name: "Nachtmodus – Helligkeit (%)"
+      description: >
+        Helligkeit im Nachtmodus. Typischerweise sehr niedrig für
+        schonendes Licht. Standard: 10 %.
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+
+    night_colour_temperature:
+      name: "Nachtmodus – Farbtemperatur (Kelvin)"
+      description: >
+        Farbtemperatur im Nachtmodus. Empfehlung: warmes Licht (2700 K)
+        für schlaffreundliche Beleuchtung. Standard: 2700 K.
+      default: 2700
+      selector:
+        number:
+          min: 2000
+          max: 6500
+          step: 100
+          unit_of_measurement: "K"
+          mode: slider
+
+    # ── Bypass ────────────────────────────────────────────────────────────────
+
+    use_bypass:
+      name: "Bypass-Schalter aktivieren"
+      description: >
+        Wenn der Bypass-Schalter eingeschaltet ist, bleibt das Licht dauerhaft
+        an – unabhängig vom Bewegungssensor und der Zeitverzögerung.
+        Beim Ausschalten des Bypass wird das Licht sofort ausgeschaltet.
+      default: false
+      selector:
+        boolean: {}
+
+    bypass_entity:
+      name: "Bypass-Schalter"
+      description: >
+        Ein input_boolean oder Schalter der den Bypass-Modus aktiviert.
+        Solange dieser Schalter 'on' ist, ignoriert die Automation den
+        Bewegungssensor. Beispiel: input_boolean.licht_bypass_flur.
+      selector:
+        entity:
+          domain:
+            - input_boolean
+            - switch
+
+    # ── Umgebungslicht-Sperre ─────────────────────────────────────────────────
+
+    use_ambient_lock:
+      name: "Umgebungslicht-Sperre aktivieren"
+      description: >
+        Verhindert das Einschalten wenn es bereits hell genug ist. Das Licht
+        wird nur eingeschaltet wenn der Lux-Wert unter dem eingestellten
+        Schwellwert liegt.
+      default: false
+      selector:
+        boolean: {}
+
+    ambient_sensor:
+      name: "Helligkeitssensor (Lux)"
+      description: >
+        Sensor der die aktuelle Umgebungshelligkeit in Lux misst.
+        Beispiel: sensor.flur_helligkeit.
+      selector:
+        entity:
+          domain: sensor
+          device_class: illuminance
+
+    ambient_max_lux:
+      name: "Maximaler Lux-Wert"
+      description: >
+        Ist die gemessene Helligkeit höher als dieser Wert, wird das Licht
+        nicht eingeschaltet – es ist bereits hell genug.
+        Standard: 100 Lux.
+      default: 100
+      selector:
+        number:
+          min: 10
+          max: 1000
+          step: 10
+          unit_of_measurement: "lx"
+          mode: slider
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Variablen – nur was wirklich berechnet werden muss
+# ──────────────────────────────────────────────────────────────────────────────
+variables:
+  # Ist Nachtmodus aktiv?
+  is_night: >
+    {% set t = now().strftime('%H:%M:%S') %}
+    {% if night_start <= night_end %}
+      {{ use_night_mode and t >= night_start and t < night_end }}
+    {% else %}
+      {{ use_night_mode and (t >= night_start or t < night_end) }}
+    {% endif %}
+  # Effektive Lichtparameter je nach Modus
+  eff_brightness: "{{ night_brightness if is_night else brightness }}"
+  eff_colour_temp: "{{ night_colour_temperature if is_night else colour_temperature }}"
+  # Lux-Bedingung erfüllt?
+  lux_ok: >
+    {% if not use_ambient_lock %}
+      true
+    {% else %}
+      {{ states(ambient_sensor) | float(0) < ambient_max_lux }}
+    {% endif %}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Trigger
+# ──────────────────────────────────────────────────────────────────────────────
+trigger:
+  # Bewegung erkannt
+  - trigger: state
+    id: "motion_on"
+    entity_id: !input motion_sensor
+    to: "on"
+
+  # Keine Bewegung mehr
+  - trigger: state
+    id: "motion_off"
+    entity_id: !input motion_sensor
+    to: "off"
+    for:
+      minutes: !input time_delay
+
+  # Bypass eingeschaltet
+  - trigger: state
+    id: "bypass_on"
+    entity_id: !input bypass_entity
+    to: "on"
+
+  # Bypass ausgeschaltet
+  - trigger: state
+    id: "bypass_off"
+    entity_id: !input bypass_entity
+    to: "off"
+
+  # Nachtmodus beginnt
+  - trigger: time
+    id: "night_start"
+    at: !input night_start
+
+  # Nachtmodus endet
+  - trigger: time
+    id: "night_end"
+    at: !input night_end
+
+  # HA-Start: Zustand wiederherstellen
+  - trigger: homeassistant
+    id: "ha_start"
+    event: start
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Aktion
+# ──────────────────────────────────────────────────────────────────────────────
+action:
+  - choose:
+
+      # ── Bypass eingeschaltet → Licht dauerhaft an ─────────────────────────
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'bypass_on' and use_bypass }}"
+        sequence:
+          - action: light.turn_on
+            target: !input light_target
+            data:
+              brightness_pct: "{{ eff_brightness if use_brightness else omit }}"
+              color_temp_kelvin: "{{ eff_colour_temp if use_colour else omit }}"
+              transition: !input transition_on
+
+      # ── Bypass ausgeschaltet → Licht aus ─────────────────────────────────
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.id == 'bypass_off' and use_bypass }}"
+        sequence:
+          - action: light.turn_off
+            target: !input light_target
+            data:
+              transition: !input transition_off
+
+      # ── Bewegung erkannt → Licht einschalten (wenn nicht Bypass oder zu hell)
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id == 'motion_on'
+                 and lux_ok
+                 and not (use_bypass and is_state(bypass_entity, 'on')) }}
+        sequence:
+          - action: light.turn_on
+            target: !input light_target
+            data:
+              brightness_pct: "{{ eff_brightness if use_brightness else omit }}"
+              color_temp_kelvin: "{{ eff_colour_temp if use_colour else omit }}"
+              transition: !input transition_on
+
+      # ── Keine Bewegung mehr → Dim-Before-OFF oder direkt ausschalten ──────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id == 'motion_off'
+                 and not (use_bypass and is_state(bypass_entity, 'on')) }}
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ use_dim_before_off }}"
+            then:
+              # Erst auf Warnstufe dimmen
+              - action: light.turn_on
+                target: !input light_target
+                data:
+                  brightness_pct: !input dim_before_off_brightness
+                  transition: !input transition_off
+              # Warten
+              - delay:
+                  seconds: !input dim_before_off_delay
+              # Dann ausschalten
+              - action: light.turn_off
+                target: !input light_target
+                data:
+                  transition: !input transition_off
+            else:
+              - action: light.turn_off
+                target: !input light_target
+                data:
+                  transition: !input transition_off
+
+      # ── Nachtmodus-Wechsel: Licht neu setzen wenn gerade an ───────────────
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.id in ['night_start', 'night_end']
+                 and use_night_mode
+                 and is_state(light_target | list | first, 'on') }}
+        sequence:
+          - action: light.turn_on
+            target: !input light_target
+            data:
+              brightness_pct: "{{ eff_brightness if use_brightness else omit }}"
+              color_temp_kelvin: "{{ eff_colour_temp if use_colour else omit }}"
+              transition: !input transition_on
+
+    # ── HA-Start: nichts tun, nur Zustand beibehalten ────────────────────────
+    default: []
+
+mode: restart
+max_exceeded: silent
