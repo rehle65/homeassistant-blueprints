@@ -1,13 +1,14 @@
 blueprint:
   name: "🌡️ Tado – Anwesenheit, Vorheizen & Saison"
   description: >-
-    Version 1.1.0 | https://github.com/rehle65/homeassistant-blueprints
+    Version 1.2.0 | https://github.com/rehle65/homeassistant-blueprints
 
     Steuert Tado-Thermostate automatisch: Zieltemperatur nach Anwesenheit und
     Tageszeit, witterungsgefuehrte Anpassung anhand Aussentemperatur,
     fruehzeitiges Vorheizen vor Ankunft, Eco-Modus bei Abwesenheit,
-    Nachtabsenkung nur bei Anwesenheit, Hysterese gegen Short-Cycling und
-    minimale Laufzeit zum Schutz des Heizsystems.
+    Nachtabsenkung nur bei Anwesenheit, Hysterese gegen Short-Cycling,
+    minimale Laufzeit zum Schutz des Heizsystems, optionale
+    Fenster-offen-Erkennung.
 
   domain: automation
   source_url: https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/tado_presence.yaml
@@ -56,7 +57,7 @@ blueprint:
         witterungsgeführte Regelung verwendet: Bei kalten Außentemperaturen
         wird die Zieltemperatur automatisch leicht angehoben, bei milden
         Temperaturen leicht abgesenkt. Das spart Energie ohne Komfortverlust.
-        Beispiel: sensor.aussentemperatur oder weather.home (Attribut temperature).
+        Beispiel: sensor.aussentemperatur.
       selector:
         entity:
           domain: sensor
@@ -97,11 +98,8 @@ blueprint:
       name: "Abwesenheits-Temperatur (°C)"
       description: >
         Zieltemperatur wenn niemand zuhause ist. Das Gerät wechselt zusätzlich
-        in den Eco-Preset (sofern von Tado unterstützt). Niedrig genug um
-        Energie zu sparen, aber hoch genug um Frost zu verhindern.
-        Standard: 17 °C. Auf 5 °C für reinen Frostschutz setzen.
-        Hinweis: Die Abwesenheitstemperatur wird nicht witterungsgeführt
-        angepasst, da hier maximale Ersparnis Vorrang hat.
+        in den Eco-Preset (sofern von Tado unterstützt). Standard: 17 °C.
+        Auf 5 °C für reinen Frostschutz setzen.
       default: 17
       selector:
         number:
@@ -115,10 +113,9 @@ blueprint:
       name: "Witterung – Referenz-Außentemperatur (°C)"
       description: >
         Die Außentemperatur, bei der keine witterungsgeführte Anpassung
-        stattfindet – die Zieltemperatur bleibt exakt beim eingestellten Wert.
-        Liegt die Außentemperatur darunter, wird die Zieltemperatur erhöht;
-        liegt sie darüber, wird sie abgesenkt.
-        Empfehlung: 10–15 °C (typische Übergangsjahreszeit). Standard: 10 °C.
+        stattfindet. Liegt die Außentemperatur darunter, wird die Zieltemperatur
+        erhöht; liegt sie darüber, wird sie abgesenkt.
+        Empfehlung: 10–15 °C. Standard: 10 °C.
       default: 10
       selector:
         number:
@@ -132,10 +129,8 @@ blueprint:
       name: "Witterung – Maximaler Versatz (°C)"
       description: >
         Maximale Anpassung der Zieltemperatur durch die witterungsgeführte
-        Regelung. Bei sehr kalten Außentemperaturen (z. B. -10 °C) wird die
-        Zieltemperatur um maximal diesen Wert erhöht; bei sehr milden
-        Temperaturen entsprechend abgesenkt. Standard: 2 °C bedeutet: die
-        Zieltemperatur schwankt um maximal ±2 °C je nach Außentemperatur.
+        Regelung. Standard: 2 °C bedeutet: die Zieltemperatur schwankt um
+        maximal ±2 °C je nach Außentemperatur.
         Auf 0 setzen um die witterungsgeführte Regelung zu deaktivieren.
       default: 2
       selector:
@@ -151,9 +146,7 @@ blueprint:
       description: >
         Wie viele Minuten vor der erwarteten Ankunft soll Tado mit dem
         Vorheizen beginnen? Die Ankunft wird erkannt wenn der Anwesenheits-
-        sensor von 'abwesend' auf 'zuhause' wechselt. Da GPS-basierte Sensoren
-        (z. B. Tado Geofencing, OwnTracks) die Ankunft oft schon einige Minuten
-        vorher melden, reichen hier meist 15–30 Minuten.
+        sensor von 'abwesend' auf 'zuhause' wechselt.
         Standard: 20 Minuten. Auf 0 setzen um das Vorheizen zu deaktivieren.
       default: 20
       selector:
@@ -186,9 +179,8 @@ blueprint:
       name: "Hysterese (°C)"
       description: >
         Toleranzbereich um die Zieltemperatur. Verhindert, dass Tado ständig
-        zwischen Heizen und Standby wechselt wenn die Temperatur knapp am
-        Zielwert schwankt. Standard: 0,5 °C. Bei Fußbodenheizung empfiehlt
-        sich ein höherer Wert (1,0–1,5 °C) da diese träger reagiert.
+        zwischen Heizen und Standby wechselt. Standard: 0,5 °C. Bei
+        Fußbodenheizung empfiehlt sich ein höherer Wert (1,0–1,5 °C).
       default: 0.5
       selector:
         number:
@@ -202,8 +194,7 @@ blueprint:
       name: "Minimale Laufzeit (Minuten)"
       description: >
         Das Gerät heizt mindestens diese Anzahl Minuten bevor es in Standby
-        wechseln darf. Schützt das Heizsystem vor zu kurzen Zyklen und spart
-        langfristig Energie. Bei Fußbodenheizung höher einstellen (30–60 min).
+        wechseln darf. Bei Fußbodenheizung höher einstellen (30–60 min).
         Standard: 10 Minuten. Auf 0 setzen um die Mindestlaufzeit zu deaktivieren.
       default: 10
       selector:
@@ -213,6 +204,33 @@ blueprint:
           step: 5
           unit_of_measurement: "min"
           mode: slider
+
+    use_window:
+      name: "Fenster-Erkennung aktivieren"
+      description: >
+        Wenn aktiviert, schaltet der Thermostat automatisch ab sobald ein
+        Fenster geöffnet wird – und nimmt den Heizbetrieb wieder auf wenn das
+        Fenster geschlossen wird. Erfordert einen Fenstersensor (binary_sensor).
+      default: false
+      selector:
+        boolean: {}
+
+    window_sensor:
+      name: "Fenstersensor"
+      description: >
+        Binärer Sensor, der den Fensterzustand meldet. Zustand 'on' = Fenster
+        offen → Thermostat wird ausgeschaltet. Zustand 'off' = Fenster
+        geschlossen → Normalbetrieb wird wieder aufgenommen.
+        Beispiel: binary_sensor.fenster_wohnzimmer.
+        Wird nur ausgewertet wenn die Fenster-Erkennung aktiviert ist.
+      default: []
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class:
+            - window
+            - door
+            - opening
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Variablen
@@ -230,10 +248,14 @@ variables:
   is_present: >
     {% set state = states(presence_sensor) %}
     {{ state in ['on', 'home'] }}
-  # Witterungsgeführte Anpassung:
-  # Differenz zur Referenztemperatur → proportionaler Versatz, begrenzt auf max_offset
-  # Kalt (unter Referenz) → positiver Versatz (wärmer heizen)
-  # Mild (über Referenz)  → negativer Versatz (weniger heizen)
+  # Fenster offen? Nur auswerten wenn Feature aktiviert und Sensor gesetzt
+  window_open: >
+    {% if use_window and window_sensor != [] and window_sensor != '' %}
+      {{ states(window_sensor) == 'on' }}
+    {% else %}
+      {{ false }}
+    {% endif %}
+  # Witterungsgeführte Anpassung
   weather_offset: >
     {% if weather_max_offset == 0 %}
       {{ 0 }}
@@ -252,7 +274,6 @@ variables:
       {{ 999 }}
     {% endif %}
   min_runtime_active: "{{ runtime_minutes < min_runtime }}"
-  # Basis-Zieltemperatur je Situation (ohne Witterung)
   base_target: >
     {% if not is_present %}
       {{ away_temp }}
@@ -261,18 +282,14 @@ variables:
     {% else %}
       {{ target_temp_day }}
     {% endif %}
-  # Effektive Zieltemperatur inkl. witterungsgeführter Anpassung
-  # (Abwesenheit wird nicht angepasst)
   effective_target: >
     {% if not is_present %}
       {{ away_temp }}
     {% else %}
       {{ (base_target + weather_offset) | round(1) }}
     {% endif %}
-  # Hysterese-Schwellen
   threshold_standby: "{{ effective_target + hysteresis }}"
   threshold_heat:    "{{ effective_target - hysteresis }}"
-  # Eco bei Abwesenheit
   use_eco: "{{ not is_present }}"
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -298,6 +315,11 @@ trigger:
   - platform: time
     at: !input night_end
 
+  # Fenstersensor – sofort reagieren wenn Fenster geöffnet/geschlossen wird
+  - platform: state
+    entity_id: !input window_sensor
+    id: window_change
+
   - platform: homeassistant
     event: start
 
@@ -306,6 +328,17 @@ trigger:
 # ──────────────────────────────────────────────────────────────────────────────
 action:
   - choose:
+
+      # ── Fenster offen → Thermostat ausschalten ────────────────────────────
+      - conditions:
+          - condition: template
+            value_template: "{{ window_open }}"
+        sequence:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: !input climate_entity
+            data:
+              hvac_mode: "off"
 
       # ── Anwesenheitssensor wechselt auf "zuhause" → Vorheizen starten ──────
       - conditions:

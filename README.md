@@ -53,6 +53,8 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Nachtende | Ende der Nacht-Zieltemperatur | 07:00 |
 | Hysterese | Toleranzbereich gegen Short-Cycling | 0,5 °C |
 | Minimale Laufzeit | Kompressorschutz, verhindert zu kurze Zyklen | 10 min |
+| Fenster-Erkennung aktivieren | Gerät ausschalten wenn Fenster offen | nein |
+| Fenstersensor | binary_sensor des Fensters (window/door/opening) | – |
 
 ---
 
@@ -100,6 +102,8 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Nachtende | Ende der Nachtabsenkung | 07:00 |
 | Hysterese | Toleranzbereich gegen Short-Cycling | 0,5 °C |
 | Minimale Laufzeit | Schutz vor zu kurzen Heizzyklen | 10 min |
+| Fenster-Erkennung aktivieren | Thermostat ausschalten wenn Fenster offen | nein |
+| Fenstersensor | binary_sensor des Fensters (window/door/opening) | – |
 
 ---
 
