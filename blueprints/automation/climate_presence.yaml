@@ -1,7 +1,7 @@
 blueprint:
   name: "❄️ Klimaanlage – Anwesenheit & Saison"
   description: >-
-    Version 1.3.0 | https://github.com/rehle65/homeassistant-blueprints
+    Version 1.3.1 | https://github.com/rehle65/homeassistant-blueprints
 
     Steuert Klimageraete automatisch: Heizen im Winter, Kuehlen im Sommer,
     Anwesenheitserkennung mit Eco-Modus, Tag-/Nacht-Temperaturen (nur bei
@@ -288,8 +288,13 @@ trigger:
   - platform: state
     entity_id: !input presence_sensor
 
+  # Außentemperatur entprellen: viele Wetterstationen liefern bei Hitze
+  # minutengenaue 0,1-°C-Schwankungen und würden die Automatisierung sonst
+  # Dutzende Male pro Stunde triggern.
   - platform: state
     entity_id: !input outdoor_temp_sensor
+    for:
+      minutes: 5
 
   - platform: state
     entity_id: !input indoor_temp_sensor
