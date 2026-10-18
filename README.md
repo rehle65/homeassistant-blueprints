@@ -4,7 +4,67 @@ Eine Sammlung von Home Assistant Blueprints für die Heimautomatisierung.
 
 ---
 
-## ❄️ Klimaanlage – Anwesenheit & Saison
+## 🌡️ Klimaanlage – Regelung nach Raumsensor (v2.0, empfohlen)
+
+Heizt im Winter, kühlt im Sommer – und regelt dabei nach einem **Raumsensor auf
+Aufenthaltshöhe** statt nach dem Sensor im Innengerät.
+
+**Warum?** Wandgeräte hängen meist knapp unter der Decke. Beim Heizen staut sich
+dort die warme Luft, der eingebaute Sensor misst 3–7 °C zu viel. Das Gerät hält
+den Sollwert für erreicht, stoppt den Kompressor und startet ihn Minuten später
+wieder – es **taktet**, während der Raum kalt bleibt. (Gemessen an Midea-Geräten:
+Kompressorstart etwa alle 12 Minuten, Raum 2–3 °C unter Soll.)
+
+**Wie?** Das Blueprint führt den **Sollwert am Gerät** nach: Ist der Raum zu kalt,
+wird er schrittweise erhöht, ist er zu warm, gesenkt – bis der Raumsensor passt.
+Der Inverter läuft dann gleichmäßig durch, statt ständig an- und auszugehen.
+
+### Features
+
+- 🌡️ Regelung nach externem Raumsensor (Sollwert-Nachführung)
+- ☀️❄️ Heizen unter der Heizgrenze, Kühlen über der Kühlgrenze, dazwischen Hysterese
+- 🌙 Tag-/Nacht-Ziele, 🏠 optional Anwesenheit mit Abwesenheits-Versatz
+- 🪟 Optional Fenstersensoren (Fenster offen → aus)
+- ⏱️ Funktioniert mit bestehenden Timern/Schaltern: Standardmäßig wird nur geregelt, solange das Gerät läuft
+- 🔁 Optional vollautomatisch mit Mindestlaufzeit und Mindestpause
+
+### Import
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Frehle65%2Fhomeassistant-blueprints%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fclimate_room_sensor.yaml)
+
+```
+https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_room_sensor.yaml
+```
+
+### Parameter
+
+| Parameter | Beschreibung | Standard |
+|---|---|---|
+| Klimagerät | climate-Entität | – |
+| Raumtemperatur-Sensor | Sensor auf Aufenthaltshöhe, **nicht** der des Geräts | – |
+| Außentemperatur-Sensor | Entscheidet Heizen/Kühlen | – |
+| Fenstersensoren | optional, mehrere möglich | – |
+| Anwesenheit | optional, Person/binary_sensor/input_boolean | – |
+| Heizgrenze / Kühlgrenze | Außentemperatur für Heizen bzw. Kühlen | 16 / 22 °C |
+| Heizen Tag / Nacht | Raumziel | 21 / 19 °C |
+| Kühlen Tag / Nacht | Raumziel | 24 / 25 °C |
+| Nachtbeginn / -ende | | 22:00 / 06:30 |
+| Abwesenheits-Versatz | | 3 °C |
+| Start-Aufschlag Heizen / Kühlen | Gerätesollwert beim Einschalten = Ziel + Aufschlag | 3 / 1 °C |
+| Maximale Abweichung | Grenze für den nachgeführten Gerätesollwert | 6 °C |
+| Totzone | Keine Anpassung, wenn Raum so nah am Ziel | 0,3 °C |
+| Nachführ-Intervall | Höchstens so oft wird angepasst | 15 min |
+| Automatisch ein/aus | sonst nur Regelung bei laufendem Gerät | aus |
+| Schaltschwelle / Mindestlaufzeit / Mindestpause | nur bei automatischem Ein/Aus | 0,7 °C / 30 / 15 min |
+
+---
+
+## ❄️ Klimaanlage – Anwesenheit & Saison (v1, veraltet)
+
+> ⚠️ **Veraltet – bitte v2.0 (oben) verwenden.** v1 setzt den Gerätesollwert gleich
+> dem Raumziel und leidet dadurch unter dem Takten durch den Gerätesensor. Außerdem
+> greifen die Templates direkt auf Blueprint-Inputs zu, was Home Assistant nicht
+> unterstützt.
 
 Steuert Klimageräte automatisch in Abhängigkeit von Anwesenheit,
 Außentemperatur und Tageszeit. Im Winter heizen, im Sommer kühlen –

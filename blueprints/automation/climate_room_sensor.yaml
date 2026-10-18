@@ -1,0 +1,420 @@
+blueprint:
+  name: "🌡️ Klimaanlage – Regelung nach Raumsensor"
+  description: >-
+    Version 2.0.0 | https://github.com/rehle65/homeassistant-blueprints
+
+
+    Regelt ein Klimagerät nach einem **externen Raumsensor** statt nach dem
+    eingebauten Sensor im Innengerät. Wandgeräte unter der Decke messen beim
+    Heizen oft 3–7 °C zu viel: Sie halten das Soll für erreicht, schalten den
+    Kompressor ab und starten ihn kurz darauf wieder (Takten), obwohl der Raum
+    noch kalt ist.
+
+
+    Prinzip: Das Blueprint führt den Sollwert am Gerät nach. Ist der Raum zu
+    kalt (Heizen) bzw. zu warm (Kühlen), wird der Gerätesollwert schrittweise
+    angehoben bzw. abgesenkt, bis der Raumsensor passt. Der Inverter kann dann
+    gleichmäßig durchlaufen statt zu takten.
+
+
+    Saison: Unter der Heizgrenze wird geheizt, über der Kühlgrenze gekühlt.
+    Dazwischen bleibt der aktuelle Modus (Hysterese).
+
+
+    Standardmäßig regelt das Blueprint nur, solange das Gerät eingeschaltet ist
+    (z. B. per Dashboard-Timer). Optional kann es das Gerät selbst ein- und
+    ausschalten.
+
+  domain: automation
+  author: Roland Ehle
+  source_url: https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automation/climate_room_sensor.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+
+  input:
+    devices:
+      name: Gerät & Sensoren
+      icon: mdi:air-conditioner
+      input:
+        climate_entity:
+          name: Klimagerät
+          description: Das Klimagerät, das geregelt wird.
+          selector:
+            entity:
+              domain: climate
+        room_temp_sensor:
+          name: Raumtemperatur-Sensor
+          description: >-
+            Sensor auf Aufenthaltshöhe im selben Raum (nicht der Sensor des
+            Klimageräts). Nach diesem Wert wird geregelt.
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        outdoor_temp_sensor:
+          name: Außentemperatur-Sensor
+          description: >-
+            Entscheidet zwischen Heizen und Kühlen. Bei mehreren Geräten an
+            einer Multisplit-Außeneinheit überall denselben Sensor verwenden.
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        window_sensors:
+          name: Fenstersensoren (optional)
+          description: >-
+            Ist eines der Fenster offen, wird das Gerät ausgeschaltet. Ohne
+            automatisches Einschalten bleibt es danach aus.
+          default: []
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class:
+                - window
+                - door
+                - opening
+              multiple: true
+        presence_sensors:
+          name: Anwesenheit (optional)
+          description: >-
+            Person, binary_sensor oder input_boolean. Ist keiner 'home'/'on',
+            gilt der Abwesenheits-Versatz und keine Nachttemperatur. Leer =
+            immer anwesend.
+          default: []
+          selector:
+            entity:
+              domain:
+                - person
+                - binary_sensor
+                - input_boolean
+              multiple: true
+
+    season:
+      name: Heizen oder Kühlen
+      icon: mdi:sun-snowflake-variant
+      input:
+        heat_below:
+          name: Heizgrenze (°C außen)
+          description: Bei dieser Außentemperatur und darunter wird geheizt.
+          default: 16
+          selector:
+            number:
+              min: 5
+              max: 22
+              step: 0.5
+              unit_of_measurement: "°C"
+        cool_above:
+          name: Kühlgrenze (°C außen)
+          description: >-
+            Bei dieser Außentemperatur und darüber wird gekühlt. Zwischen den
+            Grenzen behält ein laufendes Gerät seinen Modus.
+          default: 22
+          selector:
+            number:
+              min: 15
+              max: 32
+              step: 0.5
+              unit_of_measurement: "°C"
+
+    targets:
+      name: Raum-Zieltemperaturen
+      icon: mdi:thermometer
+      input:
+        heat_day:
+          name: Heizen – Tag
+          default: 21
+          selector:
+            number: {min: 14, max: 26, step: 0.5, unit_of_measurement: "°C"}
+        heat_night:
+          name: Heizen – Nacht
+          default: 19
+          selector:
+            number: {min: 12, max: 26, step: 0.5, unit_of_measurement: "°C"}
+        cool_day:
+          name: Kühlen – Tag
+          default: 24
+          selector:
+            number: {min: 18, max: 30, step: 0.5, unit_of_measurement: "°C"}
+        cool_night:
+          name: Kühlen – Nacht
+          default: 25
+          selector:
+            number: {min: 18, max: 30, step: 0.5, unit_of_measurement: "°C"}
+        night_start:
+          name: Nachtbeginn
+          default: "22:00:00"
+          selector:
+            time: {}
+        night_end:
+          name: Nachtende
+          default: "06:30:00"
+          selector:
+            time: {}
+        away_offset:
+          name: Abwesenheits-Versatz
+          description: Bei Abwesenheit wird um diesen Wert weniger geheizt bzw. gekühlt.
+          default: 3
+          selector:
+            number: {min: 0, max: 8, step: 0.5, unit_of_measurement: "°C"}
+
+    control:
+      name: Regelung
+      icon: mdi:tune-variant
+      collapsed: true
+      input:
+        start_offset_heat:
+          name: Start-Aufschlag Heizen
+          description: >-
+            Beim Einschalten im Heizbetrieb wird der Gerätesollwert um diesen
+            Wert über das Raumziel gesetzt. Gleicht den zu warmen Gerätesensor
+            sofort aus; danach regelt das Blueprint nach.
+          default: 3
+          selector:
+            number: {min: 0, max: 8, step: 1, unit_of_measurement: "°C"}
+        start_offset_cool:
+          name: Start-Aufschlag Kühlen
+          description: Dasselbe für den Kühlbetrieb (meist 0 bis 2).
+          default: 1
+          selector:
+            number: {min: -4, max: 6, step: 1, unit_of_measurement: "°C"}
+        max_offset:
+          name: Maximale Abweichung des Gerätesollwerts
+          description: >-
+            Weiter als dieser Wert darf der Gerätesollwert nicht vom Raumziel
+            abweichen (begrenzt das Überschwingen).
+          default: 6
+          selector:
+            number: {min: 1, max: 10, step: 1, unit_of_measurement: "°C"}
+        deadband:
+          name: Totzone
+          description: Liegt der Raum so nah am Ziel, bleibt der Sollwert unverändert.
+          default: 0.3
+          selector:
+            number: {min: 0.1, max: 1.5, step: 0.1, unit_of_measurement: "°C"}
+        adjust_interval:
+          name: Nachführ-Intervall
+          description: >-
+            So oft wird der Gerätesollwert höchstens angepasst. Räume
+            reagieren träge – zu kurze Intervalle führen zum Überschwingen.
+          default: 15
+          selector:
+            number: {min: 5, max: 30, step: 5, unit_of_measurement: "min"}
+        auto_on:
+          name: Gerät automatisch ein- und ausschalten
+          description: >-
+            Aus (Standard): Das Blueprint regelt nur, solange das Gerät läuft.
+            An: Es schaltet das Gerät bei Bedarf selbst ein und nach Erreichen
+            des Ziels wieder aus.
+          default: false
+          selector:
+            boolean: {}
+        hysteresis:
+          name: Schaltschwelle (nur automatisches Ein/Aus)
+          description: Einschalten bei Ziel ∓ Wert, Ausschalten bei Ziel ± Wert.
+          default: 0.7
+          selector:
+            number: {min: 0.2, max: 3, step: 0.1, unit_of_measurement: "°C"}
+        min_runtime:
+          name: Mindestlaufzeit (nur automatisches Ein/Aus)
+          default: 30
+          selector:
+            number: {min: 5, max: 120, step: 5, unit_of_measurement: "min"}
+        min_offtime:
+          name: Mindestpause (nur automatisches Ein/Aus)
+          default: 15
+          selector:
+            number: {min: 5, max: 120, step: 5, unit_of_measurement: "min"}
+
+mode: queued
+max: 3
+max_exceeded: silent
+
+trigger_variables:
+  tv_windows: !input window_sensors
+
+triggers:
+  - trigger: time_pattern
+    minutes: "/5"
+    id: tick
+  - trigger: state
+    entity_id: !input climate_entity
+    from: "off"
+    id: started
+  - trigger: template
+    value_template: >-
+      {{ (([tv_windows] if tv_windows is string else tv_windows)
+          | reject('eq', '') | select('is_state', 'on') | list | count) > 0 }}
+    id: window_open
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+
+variables:
+  climate_entity: !input climate_entity
+  room_sensor: !input room_temp_sensor
+  outdoor_sensor: !input outdoor_temp_sensor
+  window_sensors: !input window_sensors
+  presence_sensors: !input presence_sensors
+  heat_below: !input heat_below
+  cool_above: !input cool_above
+  heat_day: !input heat_day
+  heat_night: !input heat_night
+  cool_day: !input cool_day
+  cool_night: !input cool_night
+  night_start: !input night_start
+  night_end: !input night_end
+  away_offset: !input away_offset
+  start_offset_heat: !input start_offset_heat
+  start_offset_cool: !input start_offset_cool
+  max_offset: !input max_offset
+  deadband: !input deadband
+  adjust_interval: !input adjust_interval
+  auto_on: !input auto_on
+  hysteresis: !input hysteresis
+  min_runtime: !input min_runtime
+  min_offtime: !input min_offtime
+
+  device_state: "{{ states(climate_entity) }}"
+  is_on: "{{ device_state in ['heat', 'cool', 'auto'] }}"
+  minutes_in_state: >-
+    {{ ((now() - states[climate_entity].last_changed).total_seconds() / 60) | round(1)
+       if states[climate_entity] is not none else 0 }}
+  room_temp: "{{ states(room_sensor) | float(-99) }}"
+  room_ok: "{{ room_temp > -50 }}"
+  outdoor_temp: "{{ states(outdoor_sensor) | float(-99) }}"
+  window_open: >-
+    {{ (([window_sensors] if window_sensors is string else window_sensors)
+        | reject('eq', '') | select('is_state', 'on') | list | count) > 0 }}
+  present: >-
+    {%- set p = ([presence_sensors] if presence_sensors is string else presence_sensors)
+                | reject('eq', '') | list -%}
+    {{ p | count == 0 or (p | select('is_state', ['on', 'home']) | list | count) > 0 }}
+  is_night: >-
+    {%- set n = now().strftime('%H:%M:%S') -%}
+    {%- if night_start <= night_end -%}{{ night_start <= n < night_end }}
+    {%- else -%}{{ n >= night_start or n < night_end }}{%- endif -%}
+
+  # Heizen/Kühlen mit Hysterese zwischen den beiden Grenzen. Im Übergangsbereich
+  # behält ein laufendes Gerät seinen Modus; ein neu gestartetes kühlt nur, wenn
+  # der Raum schon über dem Kühlziel liegt.
+  season: >-
+    {%- if outdoor_temp <= -50 -%}{{ 'cool' if device_state == 'cool' else 'heat' }}
+    {%- elif outdoor_temp >= cool_above -%}cool
+    {%- elif outdoor_temp <= heat_below -%}heat
+    {%- elif device_state in ['heat', 'cool'] -%}{{ device_state }}
+    {%- elif room_ok and room_temp >= cool_day -%}cool
+    {%- else -%}heat{%- endif -%}
+
+  target: >-
+    {%- if season == 'heat' -%}
+      {%- set t = heat_night if (is_night and present) else heat_day -%}
+      {{ t if present else t - away_offset }}
+    {%- else -%}
+      {%- set t = cool_night if (is_night and present) else cool_day -%}
+      {{ t if present else t + away_offset }}
+    {%- endif -%}
+
+  # Gerätegrenzen und Schrittweite
+  sp_step: "{{ state_attr(climate_entity, 'target_temp_step') | float(1) }}"
+  sp_lo: "{{ [target - max_offset, state_attr(climate_entity, 'min_temp') | float(16)] | max }}"
+  sp_hi: "{{ [target + max_offset, state_attr(climate_entity, 'max_temp') | float(30)] | min }}"
+  cur_sp: "{{ state_attr(climate_entity, 'temperature') | float(target) }}"
+
+  start_sp: >-
+    {%- set raw = target + (start_offset_heat if season == 'heat' else start_offset_cool) -%}
+    {%- set c = [[raw, sp_lo] | max, sp_hi] | min -%}
+    {{ ((c / sp_step) | round(0)) * sp_step }}
+
+  # > 0: Raum braucht mehr Heiz- bzw. Kühlleistung
+  deviation: "{{ (target - room_temp) if season == 'heat' else (room_temp - target) }}"
+
+  new_sp: >-
+    {%- if deviation | abs < deadband -%}
+      {%- set raw = cur_sp -%}
+    {%- else -%}
+      {%- set step = [(deviation | abs) | round(0, 'ceil'), 2] | min -%}
+      {%- set sign = 1 if deviation > 0 else -1 -%}
+      {%- set raw = cur_sp + (sign * step if season == 'heat' else -sign * step) -%}
+    {%- endif -%}
+    {%- set c = [[raw, sp_lo] | max, sp_hi] | min -%}
+    {{ ((c / sp_step) | round(0)) * sp_step }}
+
+  adjust_due: "{{ now().minute % adjust_interval < 5 }}"
+  needs_on: >-
+    {{ (season == 'heat' and room_temp <= target - hysteresis)
+       or (season == 'cool' and room_temp >= target + hysteresis) }}
+  satisfied: >-
+    {{ (season == 'heat' and room_temp >= target + hysteresis)
+       or (season == 'cool' and room_temp <= target - hysteresis) }}
+
+actions:
+  - choose:
+      # Fenster offen → aus
+      - conditions:
+          - "{{ window_open and device_state not in ['off', 'unavailable', 'unknown'] }}"
+        sequence:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: "{{ climate_entity }}"
+            data:
+              hvac_mode: "off"
+    default:
+      - condition: "{{ room_ok and not window_open }}"
+      - choose:
+          # Automatisch einschalten
+          - conditions:
+              - "{{ auto_on and device_state == 'off' and present and needs_on
+                    and minutes_in_state >= min_offtime }}"
+            sequence:
+              - action: climate.set_hvac_mode
+                target:
+                  entity_id: "{{ climate_entity }}"
+                data:
+                  hvac_mode: "{{ season }}"
+              - delay: {seconds: 3}
+              - action: climate.set_temperature
+                target:
+                  entity_id: "{{ climate_entity }}"
+                data:
+                  temperature: "{{ start_sp }}"
+
+          # Gerät wurde eingeschaltet oder steht im falschen Modus
+          - conditions:
+              - "{{ is_on and (device_state != season or trigger.id == 'started') }}"
+            sequence:
+              - if:
+                  - "{{ device_state != season }}"
+                then:
+                  - action: climate.set_hvac_mode
+                    target:
+                      entity_id: "{{ climate_entity }}"
+                    data:
+                      hvac_mode: "{{ season }}"
+                  - delay: {seconds: 3}
+              - action: climate.set_temperature
+                target:
+                  entity_id: "{{ climate_entity }}"
+                data:
+                  temperature: "{{ start_sp }}"
+
+          # Automatisch ausschalten, wenn Ziel deutlich erreicht
+          - conditions:
+              - "{{ auto_on and device_state in ['heat', 'cool'] and satisfied
+                    and minutes_in_state >= min_runtime }}"
+            sequence:
+              - action: climate.set_hvac_mode
+                target:
+                  entity_id: "{{ climate_entity }}"
+                data:
+                  hvac_mode: "off"
+
+          # Gerätesollwert nach Raumsensor nachführen
+          - conditions:
+              - "{{ trigger.id == 'tick' and device_state in ['heat', 'cool']
+                    and adjust_due and (new_sp | float) != (cur_sp | float) }}"
+            sequence:
+              - action: climate.set_temperature
+                target:
+                  entity_id: "{{ climate_entity }}"
+                data:
+                  temperature: "{{ new_sp }}"
