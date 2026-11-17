@@ -1,6 +1,6 @@
 blueprint:
   name: "🌡️ Klimaanlage – Regelung nach Raumsensor"
-  description: 'Version 2.1.0 | https://github.com/rehle65/homeassistant-blueprints
+  description: 'Version 2.3.0 | https://github.com/rehle65/homeassistant-blueprints
 
 
     Regelt ein Klimagerät nach einem **externen Raumsensor** statt nach dem eingebauten
@@ -19,6 +19,14 @@ blueprint:
     ihr eigener Sensor das Soll fast erreicht sieht. Unter der Decke staut sich dann
     die Warmluft am Sensor. Optional setzt das Blueprint beim Einschalten eine feste
     Lüfterstufe je Betriebsart.
+
+
+    Zielwechsel (ab 2.2.0): Wechselt das Raumziel (Nachtbeginn, Nachtende, Komfortzeit)
+    bei laufendem Gerät, wird der Gerätesollwert sofort neu gesetzt – wie beim Einschalten.
+
+
+    Komfortzeit (ab 2.3.0): Optional ein Zeitfenster an ausgewählten Wochentagen mit
+    eigener Zieltemperatur, z. B. mittags im Wohnzimmer. Hat Vorrang vor Tag und Nacht.
 
 
     Saison: Unter der Heizgrenze wird geheizt, über der Kühlgrenze gekühlt. Dazwischen
@@ -88,8 +96,8 @@ blueprint:
         presence_sensors:
           name: Anwesenheit (optional)
           description: Person, binary_sensor oder input_boolean. Ist keiner 'home'/'on',
-            gilt der Abwesenheits-Versatz und keine Nachttemperatur. Leer = immer
-            anwesend.
+            gilt der Abwesenheits-Versatz und weder Nacht- noch Komfortziel. Leer
+            = immer anwesend.
           default: []
           selector:
             entity:
@@ -188,6 +196,79 @@ blueprint:
             number:
               min: 0.0
               max: 8.0
+              step: 0.5
+              unit_of_measurement: °C
+              mode: slider
+    comfort:
+      name: Komfortzeit (optional)
+      icon: mdi:sofa
+      collapsed: true
+      input:
+        comfort_enabled:
+          name: Komfortzeit verwenden
+          description: An ausgewählten Wochentagen gilt im Zeitfenster ein eigenes
+            Raumziel. Es hat Vorrang vor Tag und Nacht.
+          default: false
+          selector:
+            boolean: {}
+        comfort_start:
+          name: Beginn
+          description: Für einen warmen Raum zum Beginn etwas Vorlauf einplanen (z.
+            B. 30 Minuten früher).
+          default: '11:00:00'
+          selector:
+            time: {}
+        comfort_end:
+          name: Ende
+          default: '13:00:00'
+          selector:
+            time: {}
+        comfort_days:
+          name: Wochentage
+          default:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+          - sat
+          - sun
+          selector:
+            select:
+              multiple: true
+              mode: list
+              options:
+              - label: Montag
+                value: mon
+              - label: Dienstag
+                value: tue
+              - label: Mittwoch
+                value: wed
+              - label: Donnerstag
+                value: thu
+              - label: Freitag
+                value: fri
+              - label: Samstag
+                value: sat
+              - label: Sonntag
+                value: sun
+        comfort_heat:
+          name: Heizen – Komfort
+          default: 21
+          selector:
+            number:
+              min: 14.0
+              max: 26.0
+              step: 0.5
+              unit_of_measurement: °C
+              mode: slider
+        comfort_cool:
+          name: Kühlen – Komfort
+          default: 24
+          selector:
+            number:
+              min: 18.0
+              max: 30.0
               step: 0.5
               unit_of_measurement: °C
               mode: slider
@@ -367,6 +448,18 @@ triggers:
 - trigger: homeassistant
   event: start
   id: ha_start
+- trigger: time
+  at: !input night_start
+  id: night_change
+- trigger: time
+  at: !input night_end
+  id: night_change
+- trigger: time
+  at: !input comfort_start
+  id: comfort_change
+- trigger: time
+  at: !input comfort_end
+  id: comfort_change
 variables:
   climate_entity: !input climate_entity
   room_sensor: !input room_temp_sensor
@@ -382,6 +475,12 @@ variables:
   night_start: !input night_start
   night_end: !input night_end
   away_offset: !input away_offset
+  comfort_enabled: !input comfort_enabled
+  comfort_start: !input comfort_start
+  comfort_end: !input comfort_end
+  comfort_days: !input comfort_days
+  comfort_heat: !input comfort_heat
+  comfort_cool: !input comfort_cool
   fan_mode_heat: !input fan_mode_heat
   fan_mode_cool: !input fan_mode_cool
   start_offset_heat: !input start_offset_heat
@@ -408,15 +507,32 @@ variables:
   is_night: '{%- set n = now().strftime(''%H:%M:%S'') -%} {%- if night_start <= night_end
     -%}{{ night_start <= n < night_end }} {%- else -%}{{ n >= night_start or n < night_end
     }}{%- endif -%}'
+  is_comfort: >-
+    {%- set n = now().strftime('%H:%M:%S') -%}
+    {%- set d = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'][now().weekday()] -%}
+    {%- set days = [comfort_days] if comfort_days is string else comfort_days -%}
+    {%- if not comfort_enabled or d not in days -%}false
+    {%- elif comfort_start <= comfort_end -%}{{ comfort_start <= n < comfort_end }}
+    {%- else -%}{{ n >= comfort_start or n < comfort_end }}{%- endif -%}
   season: '{%- if outdoor_temp <= -50 -%}{{ ''cool'' if device_state == ''cool'' else
     ''heat'' }} {%- elif outdoor_temp >= cool_above -%}cool {%- elif outdoor_temp
     <= heat_below -%}heat {%- elif device_state in [''heat'', ''cool''] -%}{{ device_state
     }} {%- elif room_ok and room_temp >= cool_day -%}cool {%- else -%}heat{%- endif
     -%}'
-  target: "{%- if season == 'heat' -%}\n  {%- set t = heat_night if (is_night and
-    present) else heat_day -%}\n  {{ t if present else t - away_offset }}\n{%- else
-    -%}\n  {%- set t = cool_night if (is_night and present) else cool_day -%}\n  {{
-    t if present else t + away_offset }}\n{%- endif -%}"
+  target: >-
+    {%- if season == 'heat' -%}
+      {%- if is_comfort and present -%}{%- set t = comfort_heat -%}
+      {%- elif is_night and present -%}{%- set t = heat_night -%}
+      {%- else -%}{%- set t = heat_day -%}{%- endif -%}
+      {{ t if present else t - away_offset }}
+    {%- else -%}
+      {%- if is_comfort and present -%}{%- set t = comfort_cool -%}
+      {%- elif is_night and present -%}{%- set t = cool_night -%}
+      {%- else -%}{%- set t = cool_day -%}{%- endif -%}
+      {{ t if present else t + away_offset }}
+    {%- endif -%}
+  target_changed: '{{ trigger.id == ''night_change'' or (trigger.id == ''comfort_change''
+    and comfort_enabled) }}'
   sp_step: '{{ state_attr(climate_entity, ''target_temp_step'') | float(1) }}'
   sp_lo: '{{ [target - max_offset, state_attr(climate_entity, ''min_temp'') | float(16)]
     | max }}'
@@ -482,7 +598,8 @@ actions:
           data:
             fan_mode: '{{ fan_target }}'
     - conditions:
-      - '{{ is_on and (device_state != season or trigger.id == ''started'') }}'
+      - '{{ is_on and (device_state != season or trigger.id == ''started'' or target_changed)
+        }}'
       sequence:
       - if:
         - '{{ device_state != season }}'

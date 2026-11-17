@@ -4,7 +4,7 @@ Eine Sammlung von Home Assistant Blueprints für die Heimautomatisierung.
 
 ---
 
-## 🌡️ Klimaanlage – Regelung nach Raumsensor (v2.1, empfohlen)
+## 🌡️ Klimaanlage – Regelung nach Raumsensor (v2.3, empfohlen)
 
 Heizt im Winter, kühlt im Sommer – und regelt dabei nach einem **Raumsensor auf
 Aufenthaltshöhe** statt nach dem Sensor im Innengerät.
@@ -28,6 +28,8 @@ Der Inverter läuft dann gleichmäßig durch, statt ständig an- und auszugehen.
 - ⏱️ Funktioniert mit bestehenden Timern/Schaltern: Standardmäßig wird nur geregelt, solange das Gerät läuft
 - 🔁 Optional vollautomatisch mit Mindestlaufzeit und Mindestpause
 - 🌀 Optional feste Lüfterstufe je Betriebsart (ab 2.1.0): verhindert, dass der Lüfter-Automatikmodus drosselt und sich Warmluft am Gerätesensor staut
+- 🎯 Zielwechsel (ab 2.2.0): Wechselt das Raumziel bei laufendem Gerät (Nachtbeginn, Nachtende, Komfortzeit), wird der Gerätesollwert sofort neu gesetzt statt schrittweise nachgeführt
+- 🛋️ Optionale Komfortzeit (ab 2.3.0): Zeitfenster an ausgewählten Wochentagen mit eigener Zieltemperatur, z. B. mittags im Wohnzimmer; hat Vorrang vor Tag und Nacht
 
 ### Import
 
@@ -51,6 +53,10 @@ https://github.com/rehle65/homeassistant-blueprints/blob/main/blueprints/automat
 | Kühlen Tag / Nacht | Raumziel | 24 / 25 °C |
 | Nachtbeginn / -ende | | 22:00 / 06:30 |
 | Abwesenheits-Versatz | | 3 °C |
+| Komfortzeit verwenden | Eigenes Raumziel im Zeitfenster, Vorrang vor Tag und Nacht | aus |
+| Komfortzeit Beginn / Ende | Für einen warmen Raum etwas Vorlauf einplanen | 11:00 / 13:00 |
+| Komfortzeit Wochentage | | alle |
+| Heizen / Kühlen Komfort | Raumziel in der Komfortzeit | 21 / 24 °C |
 | Lüfterstufe Heizen / Kühlen | Wird beim Einschalten und beim Wechsel Heizen/Kühlen gesetzt | Nicht ändern |
 | Start-Aufschlag Heizen / Kühlen | Gerätesollwert beim Einschalten = Ziel + Aufschlag | 3 / 1 °C |
 | Maximale Abweichung | Grenze für den nachgeführten Gerätesollwert | 6 °C |
