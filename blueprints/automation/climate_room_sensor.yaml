@@ -1,6 +1,6 @@
 blueprint:
   name: "🌡️ Klimaanlage – Regelung nach Raumsensor"
-  description: 'Version 2.3.0 | https://github.com/rehle65/homeassistant-blueprints
+  description: 'Version 2.3.1 | https://github.com/rehle65/homeassistant-blueprints
 
 
     Regelt ein Klimagerät nach einem **externen Raumsensor** statt nach dem eingebauten
@@ -27,6 +27,10 @@ blueprint:
 
     Komfortzeit (ab 2.3.0): Optional ein Zeitfenster an ausgewählten Wochentagen mit
     eigener Zieltemperatur, z. B. mittags im Wohnzimmer. Hat Vorrang vor Tag und Nacht.
+
+
+    Korrektur (2.3.1): Bei ausgeschalteter Komfortzeit und an Tagen außerhalb der gewählten
+    Wochentage galt bis 2.3.0 trotzdem die Komfort-Temperatur.
 
 
     Saison: Unter der Heizgrenze wird geheizt, über der Kühlgrenze gekühlt. Dazwischen
@@ -511,7 +515,7 @@ variables:
     {%- set n = now().strftime('%H:%M:%S') -%}
     {%- set d = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'][now().weekday()] -%}
     {%- set days = [comfort_days] if comfort_days is string else comfort_days -%}
-    {%- if not comfort_enabled or d not in days -%}false
+    {%- if not comfort_enabled or d not in days -%}{{ false }}
     {%- elif comfort_start <= comfort_end -%}{{ comfort_start <= n < comfort_end }}
     {%- else -%}{{ n >= comfort_start or n < comfort_end }}{%- endif -%}
   season: '{%- if outdoor_temp <= -50 -%}{{ ''cool'' if device_state == ''cool'' else
