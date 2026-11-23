@@ -1,6 +1,6 @@
 blueprint:
   name: "🌡️ Klimaanlage – Regelung nach Raumsensor"
-  description: 'Version 2.3.1 | https://github.com/rehle65/homeassistant-blueprints
+  description: 'Version 2.4.0 | https://github.com/rehle65/homeassistant-blueprints
 
 
     Regelt ein Klimagerät nach einem **externen Raumsensor** statt nach dem eingebauten
@@ -31,6 +31,11 @@ blueprint:
 
     Korrektur (2.3.1): Bei ausgeschalteter Komfortzeit und an Tagen außerhalb der gewählten
     Wochentage galt bis 2.3.0 trotzdem die Komfort-Temperatur.
+
+
+    Manuell überstimmen (ab 2.4.0): Optional ein Schalter (input_boolean). Solange
+    er an ist, lässt das Blueprint das Gerät in Ruhe (nur offene Fenster schalten
+    es weiterhin aus). Geht er aus, wird sofort wieder auf das Raumziel geregelt.
 
 
     Saison: Unter der Heizgrenze wird geheizt, über der Kühlgrenze gekühlt. Dazwischen
@@ -110,6 +115,17 @@ blueprint:
               - binary_sensor
               - input_boolean
               multiple: true
+              reorder: false
+        override_switch:
+          name: Manuell-Schalter (optional)
+          description: Solange dieser Schalter an ist, regelt das Blueprint nicht.
+            Das automatische Ende (z. B. nach Laufzeit) übernimmt eine eigene Automation.
+          default: ''
+          selector:
+            entity:
+              domain:
+              - input_boolean
+              multiple: false
               reorder: false
     season:
       name: Heizen oder Kühlen
@@ -437,6 +453,7 @@ max: 3
 max_exceeded: silent
 trigger_variables:
   tv_windows: !input window_sensors
+  tv_override: !input override_switch
 triggers:
 - trigger: time_pattern
   minutes: /5
@@ -449,6 +466,9 @@ triggers:
   value_template: "{{ (([tv_windows] if tv_windows is string else tv_windows)\n    |
     reject('eq', '') | select('is_state', 'on') | list | count) > 0 }}"
   id: window_open
+- trigger: template
+  value_template: "{{ tv_override != '' and is_state(tv_override, 'off') }}"
+  id: override_end
 - trigger: homeassistant
   event: start
   id: ha_start
@@ -493,6 +513,8 @@ variables:
   deadband: !input deadband
   adjust_interval: !input adjust_interval
   auto_on: !input auto_on
+  override_switch: !input override_switch
+  override_on: "{{ override_switch != '' and is_state(override_switch, 'on') }}"
   hysteresis: !input hysteresis
   min_runtime: !input min_runtime
   min_offtime: !input min_offtime
@@ -535,7 +557,7 @@ variables:
       {%- else -%}{%- set t = cool_day -%}{%- endif -%}
       {{ t if present else t + away_offset }}
     {%- endif -%}
-  target_changed: '{{ trigger.id == ''night_change'' or (trigger.id == ''comfort_change''
+  target_changed: '{{ trigger.id in [''night_change'', ''override_end''] or (trigger.id == ''comfort_change''
     and comfort_enabled) }}'
   sp_step: '{{ state_attr(climate_entity, ''target_temp_step'') | float(1) }}'
   sp_lo: '{{ [target - max_offset, state_attr(climate_entity, ''min_temp'') | float(16)]
@@ -573,7 +595,7 @@ actions:
       data:
         hvac_mode: 'off'
   default:
-  - condition: '{{ room_ok and not window_open }}'
+  - condition: '{{ room_ok and not window_open and not override_on }}'
   - choose:
     - conditions:
       - '{{ auto_on and device_state == ''off'' and present and needs_on and minutes_in_state

@@ -4,7 +4,7 @@ Eine Sammlung von Home Assistant Blueprints für die Heimautomatisierung.
 
 ---
 
-## 🌡️ Klimaanlage – Regelung nach Raumsensor (v2.3, empfohlen)
+## 🌡️ Klimaanlage – Regelung nach Raumsensor (v2.4, empfohlen)
 
 Heizt im Winter, kühlt im Sommer – und regelt dabei nach einem **Raumsensor auf
 Aufenthaltshöhe** statt nach dem Sensor im Innengerät.
@@ -30,6 +30,7 @@ Der Inverter läuft dann gleichmäßig durch, statt ständig an- und auszugehen.
 - 🌀 Optional feste Lüfterstufe je Betriebsart (ab 2.1.0): verhindert, dass der Lüfter-Automatikmodus drosselt und sich Warmluft am Gerätesensor staut
 - 🎯 Zielwechsel (ab 2.2.0): Wechselt das Raumziel bei laufendem Gerät (Nachtbeginn, Nachtende, Komfortzeit), wird der Gerätesollwert sofort neu gesetzt statt schrittweise nachgeführt
 - 🛋️ Optionale Komfortzeit (ab 2.3.0): Zeitfenster an ausgewählten Wochentagen mit eigener Zieltemperatur, z. B. mittags im Wohnzimmer; hat Vorrang vor Tag und Nacht
+- ✋ Optionaler Manuell-Schalter (ab 2.4.0): Solange ein `input_boolean` an ist, regelt das Blueprint nicht. Beim Ausschalten wird sofort wieder auf das Raumziel geregelt. Das Ende nach Laufzeit übernimmt eine eigene Automation mit Timer.
 
 ### Import
 
