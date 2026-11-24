@@ -1,6 +1,6 @@
 blueprint:
   name: "🌡️ Klimaanlage – Regelung nach Raumsensor"
-  description: 'Version 2.4.0 | https://github.com/rehle65/homeassistant-blueprints
+  description: 'Version 2.4.1 | https://github.com/rehle65/homeassistant-blueprints
 
 
     Regelt ein Klimagerät nach einem **externen Raumsensor** statt nach dem eingebauten
@@ -560,10 +560,10 @@ variables:
   target_changed: '{{ trigger.id in [''night_change'', ''override_end''] or (trigger.id == ''comfort_change''
     and comfort_enabled) }}'
   sp_step: '{{ state_attr(climate_entity, ''target_temp_step'') | float(1) }}'
-  sp_lo: '{{ [target - max_offset, state_attr(climate_entity, ''min_temp'') | float(16)]
-    | max }}'
-  sp_hi: '{{ [target + max_offset, state_attr(climate_entity, ''max_temp'') | float(30)]
-    | min }}'
+  dev_min: '{{ state_attr(climate_entity, ''min_temp'') | float(16) }}'
+  dev_max: '{{ state_attr(climate_entity, ''max_temp'') | float(30) }}'
+  sp_lo: '{{ [[target - max_offset, dev_min] | max, dev_max] | min }}'
+  sp_hi: '{{ [[target + max_offset, dev_min] | max, dev_max] | min }}'
   cur_sp: '{{ state_attr(climate_entity, ''temperature'') | float(target) }}'
   start_sp: '{%- set raw = target + (start_offset_heat if season == ''heat'' else
     start_offset_cool) -%} {%- set c = [[raw, sp_lo] | max, sp_hi] | min -%} {{ ((c
